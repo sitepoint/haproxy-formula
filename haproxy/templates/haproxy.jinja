@@ -120,6 +120,19 @@ listen {{ listener[1].get('name', listener[0]) }}
     reqadd {{ reqadd }}
       {%- endfor -%}
     {%- endif -%}
+    {%- if 'monitor_uri' in listener[1] %}
+    monitor-uri {{ listener[1].monitor_uri }}
+    {%- endif -%}
+    {%- if 'monitor' in listener[1] -%}
+      {%- for monitor in listener[1].monitor %}
+    monitor {{ monitor }}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'errorfiles' in listener[1] -%}
+      {%- for errorfile in listener[1].errorfiles.iteritems() %}
+    errorfile {{ errorfile[0] }} {{ errorfile[1] }}
+      {%- endfor -%}
+    {%- endif -%}
     {%- if 'default_backend' in listener[1] %}
     default_backend {{ listener[1].default_backend }}
     {% endif -%}
