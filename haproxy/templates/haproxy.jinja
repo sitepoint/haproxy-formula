@@ -210,6 +210,11 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
     acl {{ acl }}
       {%- endfor -%}
     {%- endif -%}
+    {%- if 'http_request' in frontend[1] %}
+      {%- for http_request in frontend[1].http_request %}
+    http-request {{ http_request }}
+      {%- endfor -%}
+    {%- endif -%}
     {%- if 'redirects' in frontend[1] -%}
       {%- for front_redirect in frontend[1].redirects %}
     redirect {{ front_redirect }}
