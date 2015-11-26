@@ -7,8 +7,18 @@ haproxy.service:
     - require:
       - pkg: haproxy
         file: haproxy.service
+{% if 'ssl' in salt['pillar.items']() %}
+{% for ssl_cert in salt['pillar.get']('ssl') %}
+      - file: /etc/haproxy/certs/{{ ssl_cert }}.pem
+{% endfor %}
+{% endif %}
     - watch:
       - file: haproxy.config
+{% if 'ssl' in salt['pillar.items']() %}
+{% for ssl_cert in salt['pillar.get']('ssl') %}
+      - file: /etc/haproxy/certs/{{ ssl_cert }}.pem
+{% endfor %}
+{% endif %}
 {% else %}
   service.dead:
     - name: haproxy

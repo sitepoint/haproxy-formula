@@ -18,7 +18,12 @@ global
     user {{ salt['pillar.get']('haproxy:global:user', 'haproxy') }}
     group {{ salt['pillar.get']('haproxy:global:group', 'haproxy') }}
 {%- if salt['pillar.get']('haproxy:global:chroot:enable', 'no') == True %}
-    chroot  {{ salt['pillar.get']('haproxy:global:chroot:path', '/tmp') }}
+    chroot {{ salt['pillar.get']('haproxy:global:chroot:path', '/tmp') }}
+{%- endif -%}
+{%- if 'misc' in salt['pillar.get']('haproxy:global', {}) -%}
+  {%- for misc in salt['pillar.get']('haproxy:global:misc') %}
+    {{ misc }}
+  {%- endfor -%}
 {%- endif -%}
 {%- if salt['pillar.get']('haproxy:global:stats:enable', 'no') == True %}
 
@@ -66,7 +71,7 @@ resolvers {{ resolver[0] }}
   {%- endif -%}
 {%- endfor -%}
 {%- endif -%}
-{%- if 'listens' in salt['pillar.get']('haproxy', {}) %}
+{%- if 'userlist' in salt['pillar.get']('haproxy', {}) %}
 
 
 #------------------
@@ -105,14 +110,14 @@ listen {{ listener[1].get('name', listener[0]) }}
     bind {{ listener[1].bind }}
       {%- endif -%}
     {%- endif -%}
-    {%- if 'redirects' in listener[1] -%}
-      {%- for front_redirect in listener[1].redirects %}
-    redirect {{ front_redirect }}
-      {%- endfor -%}
-    {%- endif -%}
     {%- if 'acls' in listener[1] -%}
       {%- for acl in listener[1].acls %}
     acl {{ acl }}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'redirects' in listener[1] -%}
+      {%- for front_redirect in listener[1].redirects %}
+    redirect {{ front_redirect }}
       {%- endfor -%}
     {%- endif -%}
     {%- if 'reqadd' in listener[1] -%}
@@ -200,16 +205,21 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
     {{ option }}
       {%- endfor -%}
     {%- endif -%}
-    {%- if 'redirects' in frontend[1] -%}
-      {%- for front_redirect in frontend[1].redirects %}
-    redirect {{ front_redirect }}
-      {%- endfor -%}
-    {% endif -%}
     {%- if 'acls' in frontend[1] -%}
       {%- for acl in frontend[1].acls %}
     acl {{ acl }}
       {%- endfor -%}
     {%- endif -%}
+    {%- if 'http_request' in frontend[1] %}
+      {%- for http_request in frontend[1].http_request %}
+    http-request {{ http_request }}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'redirects' in frontend[1] -%}
+      {%- for front_redirect in frontend[1].redirects %}
+    redirect {{ front_redirect }}
+      {%- endfor -%}
+    {% endif -%}
     {%- if 'reqadd' in frontend[1] -%}
       {%- for reqadd in frontend[1].reqadd %}
     reqadd {{ reqadd }}
@@ -232,7 +242,7 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
     default_backend {{ frontend[1].default_backend }}
     {%- endif %}
   {% endfor -%}
-{%- endif %}
+{%- endif -%}
 {%- if 'backends' in salt['pillar.get']('haproxy', {}) %}
 
 #------------------
@@ -240,11 +250,6 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
 #------------------
   {%- for backend in salt['pillar.get']('haproxy:backends', {}).iteritems() %}
 backend {{ backend[1].get('name',backend[0]) }}
-    {%- if 'redirects' in backend[1] %}
-      {%- for redirect in backend[1].redirects %}
-    redirect {{ redirect }}
-      {%- endfor %}
-    {%- endif -%}
     {%- if 'rspirep' in backend[1] -%}
       {%- for rspirep in backend[1].rspirep %}
     rspirep {{ rspirep }}
@@ -284,6 +289,11 @@ backend {{ backend[1].get('name',backend[0]) }}
       {%- for http_request in backend[1].http_request %}
     http-request {{ http_request }}
       {%- endfor -%}
+    {%- endif -%}
+    {%- if 'redirects' in backend[1] %}
+      {%- for redirect in backend[1].redirects %}
+    redirect {{ redirect }}
+      {%- endfor %}
     {%- endif -%}
     {%- if 'hash_type' in backend[1] %}
     hash-type {{ backend[1].hash_type }}

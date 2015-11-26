@@ -36,3 +36,29 @@ haproxy.install:
         </body></html>
     - require:
       - pkg: haproxy.install
+
+{% if 'ssl' in salt['pillar.items']() %}
+/etc/haproxy/certs:
+  file.directory:
+    - user: root
+    - group: {{ salt['pillar.get']('haproxy:global:group', 'haproxy') }}
+    - mode: '0750'
+    - require:
+      - pkg: haproxy
+
+{% for ssl_cert in salt['pillar.get']('ssl') %}
+/etc/haproxy/certs/{{ ssl_cert }}.pem:
+  file.managed:
+    - user: root
+    - group: www-data
+    - mode: '0640'
+    - contents: |
+        {{ salt['pillar.get']('ssl:%s:key' % ssl_cert) | indent(8) }}
+        {{ salt['pillar.get']('ssl:%s:certificate' % ssl_cert) | indent(8) }}
+        {%- if 'ca' in salt['pillar.get']('ssl:%s' % ssl_cert) %}
+        {{ salt['pillar.get']('ssl:%s:ca' % ssl_cert) | indent(8) }}
+        {% endif %}
+    - require:
+      - file: /etc/haproxy/certs
+{% endfor %}
+{% endif %}
