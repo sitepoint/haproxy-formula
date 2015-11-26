@@ -28,8 +28,8 @@ global
 
 
 #------------------
-# common defaults that all the 'listen' and 'backend' sections will
-# use- if not designated in their block
+# Common defaults that all the 'listen' and 'backend' sections will
+# use - if not designated in their block
 #------------------
 defaults
     log {{ salt['pillar.get']('haproxy:defaults:log') }}
@@ -180,7 +180,7 @@ listen {{ listener[1].get('name', listener[0]) }}
 
 
 #------------------
-# frontend instances
+# Frontend instances
 #------------------
   {%- for frontend in salt['pillar.get']('haproxy:frontends', {}).iteritems() %}
 frontend {{ frontend[1].get('name', frontend[0]) }}
@@ -236,7 +236,7 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
 {%- if 'backends' in salt['pillar.get']('haproxy', {}) %}
 
 #------------------
-# backend instances
+# Backend instances
 #------------------
   {%- for backend in salt['pillar.get']('haproxy:backends', {}).iteritems() %}
 backend {{ backend[1].get('name',backend[0]) }}
