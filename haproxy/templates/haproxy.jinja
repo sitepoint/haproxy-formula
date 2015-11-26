@@ -71,7 +71,7 @@ resolvers {{ resolver[0] }}
   {%- endif -%}
 {%- endfor -%}
 {%- endif -%}
-{%- if 'listens' in salt['pillar.get']('haproxy', {}) %}
+{%- if 'userlist' in salt['pillar.get']('haproxy', {}) %}
 
 
 #------------------
