@@ -18,3 +18,21 @@ haproxy.install:
       - {{ item }}
 {% endfor %}
 {% endif %}
+
+{#
+ # This is so HAProxy can confirm Squid is operational. The only known
+ # alternative is running a separate webserver for a single file.
+ #}
+/etc/haproxy/errors/200.http:
+  file.managed:
+    - contents: |
+        HTTP/1.0 200 OK
+        Cache-Control: no-cache
+        Connection: close
+        Content-Type: text/html
+
+        <html><body><h1>200 OK</h1>
+        The test page was successful.
+        </body></html>
+    - require:
+      - pkg: haproxy.install
