@@ -237,7 +237,7 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
     default_backend {{ frontend[1].default_backend }}
     {%- endif %}
   {% endfor -%}
-{%- endif %}
+{%- endif -%}
 {%- if 'backends' in salt['pillar.get']('haproxy', {}) %}
 
 #------------------
