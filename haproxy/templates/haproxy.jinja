@@ -70,7 +70,27 @@ resolvers {{ resolver[0] }}
 
 
 #------------------
-# listen instances
+# User lists
+#------------------
+{%- for userlist in salt['pillar.get']('haproxy:userlist', {}).iteritems() %}
+userlist {{ userlist[0] }}
+  {%- if 'users' in userlist[1] -%}
+      {%- for user in userlist[1].users %}
+    user {{ user }}
+      {%- endfor -%}
+  {%- endif -%}
+  {%- if 'groups' in userlist[1] -%}
+      {%- for group in userlist[1].groups %}
+    group {{ group }}
+      {%- endfor -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- endif -%}
+{%- if 'listens' in salt['pillar.get']('haproxy', {}) %}
+
+
+#------------------
+# Listen instances
 #------------------
 {%- for listener in salt['pillar.get']('haproxy:listens', {}).iteritems() %}
 listen {{ listener[1].get('name', listener[0]) }}
@@ -212,16 +232,6 @@ backend {{ backend[1].get('name',backend[0]) }}
     redirect {{ redirect }}
       {%- endfor %}
     {%- endif -%}
-    {%- if 'http_request' in backend[1] %}
-      {%- for http_request in backend[1].http_request %}
-    http-request {{ http_request }}
-      {%- endfor -%}
-    {%- endif -%}
-    {%- if 'acls' in backend[1] -%}
-      {%- for acl in backend[1].acls %}
-    acl {{ acl }}
-      {%- endfor -%}
-    {%- endif -%}
     {%- if 'rspirep' in backend[1] -%}
       {%- for rspirep in backend[1].rspirep %}
     rspirep {{ rspirep }}
@@ -250,6 +260,16 @@ backend {{ backend[1].get('name',backend[0]) }}
         {%- else %}
     stats {{ option }} {{ value }}
         {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'acls' in backend[1] -%}
+      {%- for acl in backend[1].acls %}
+    acl {{ acl }}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'http_request' in backend[1] %}
+      {%- for http_request in backend[1].http_request %}
+    http-request {{ http_request }}
       {%- endfor -%}
     {%- endif -%}
     {%- if 'hash_type' in backend[1] %}
