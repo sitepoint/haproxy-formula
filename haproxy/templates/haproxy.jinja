@@ -18,7 +18,12 @@ global
     user {{ salt['pillar.get']('haproxy:global:user', 'haproxy') }}
     group {{ salt['pillar.get']('haproxy:global:group', 'haproxy') }}
 {%- if salt['pillar.get']('haproxy:global:chroot:enable', 'no') == True %}
-    chroot  {{ salt['pillar.get']('haproxy:global:chroot:path', '/tmp') }}
+    chroot {{ salt['pillar.get']('haproxy:global:chroot:path', '/tmp') }}
+{%- endif -%}
+{%- if 'misc' in salt['pillar.get']('haproxy:global', {}) -%}
+  {%- for misc in salt['pillar.get']('haproxy:global:misc') %}
+    {{ misc }}
+  {%- endfor -%}
 {%- endif -%}
 {%- if salt['pillar.get']('haproxy:global:stats:enable', 'no') == True %}
 
