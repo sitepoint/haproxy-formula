@@ -210,9 +210,19 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
     acl {{ acl }}
       {%- endfor -%}
     {%- endif -%}
+    {%- if 'rspirep' in frontend[1] -%}
+      {%- for rspirep in frontend[1].rspirep %}
+    rspirep {{ rspirep }}
+      {%- endfor -%}
+    {%- endif -%}
     {%- if 'http_request' in frontend[1] %}
       {%- for http_request in frontend[1].http_request %}
     http-request {{ http_request }}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'reqirep' in frontend[1] -%}
+      {%- for reqirep in frontend[1].reqirep %}
+    reqirep {{ reqirep }}
       {%- endfor -%}
     {%- endif -%}
     {%- if 'redirects' in frontend[1] -%}
@@ -250,11 +260,6 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
 #------------------
   {%- for backend in salt['pillar.get']('haproxy:backends', {}).iteritems() %}
 backend {{ backend[1].get('name',backend[0]) }}
-    {%- if 'rspirep' in backend[1] -%}
-      {%- for rspirep in backend[1].rspirep %}
-    rspirep {{ rspirep }}
-      {%- endfor -%}
-    {%- endif -%}
     {%- if 'balance' in backend[1] %}
     balance {{ backend[1].balance }}
     {%- endif -%}
@@ -283,6 +288,11 @@ backend {{ backend[1].get('name',backend[0]) }}
     {%- if 'acls' in backend[1] -%}
       {%- for acl in backend[1].acls %}
     acl {{ acl }}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- if 'rspirep' in backend[1] -%}
+      {%- for rspirep in backend[1].rspirep %}
+    rspirep {{ rspirep }}
       {%- endfor -%}
     {%- endif -%}
     {%- if 'http_request' in backend[1] %}
