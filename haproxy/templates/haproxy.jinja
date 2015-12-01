@@ -185,9 +185,9 @@ listen {{ listener[1].get('name', listener[0]) }}
         {%- set check = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:check', '') -%}
         {%- set extra = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:extra', '') %}
     server {{ server }} {{ address }}:{{ port }} {{ check }} {{ extra }}
-      {% endfor %}
-    {%- endif -%}
-  {% endfor -%}
+      {%- endfor -%}
+    {%- endif %}
+  {% endfor %}
 {%- endif -%}
 {%- if 'frontends' in salt['pillar.get']('haproxy', {}) %}
 
@@ -333,7 +333,7 @@ backend {{ backend[1].get('name', backend[0]) }}
         {%- set check = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:check', '') -%}
         {%- set extra = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:extra', '') %}
     server {{ server }} {{ address }}:{{ port }} {{ check }} {{ extra }}
-      {% endfor %}
-    {%- endif -%}
-  {% endfor -%}
+      {%- endfor -%}
+    {%- endif %}
+  {% endfor %}
 {%- endif -%}
