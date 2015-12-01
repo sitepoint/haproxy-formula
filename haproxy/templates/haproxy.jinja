@@ -176,8 +176,16 @@ listen {{ listener[1].get('name', listener[0]) }}
     {%- endif -%}
     {%- if 'servers' in listener[1] -%}
       {%- for server in listener[1].servers.iteritems() %}
-    server {{ server[1].get('name',server[0]) }} {{ server[1].host }}:{{ server[1].port }} {{ server[1].check }}
+    server {{ server[1].get('name', server[0]) }} {{ server[1].host }}:{{ server[1].port }} {{ server[1].check }}
       {%- endfor -%}
+    {%- endif -%}
+    {%- if 'mine_servers_module' in listener[1] and 'mine_servers' in listener[1] -%}
+      {%- for server, address in salt['mine.get'](listener[1].mine_servers, listener[1].mine_servers_module).items() -%}
+        {%- set port = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:port', '80') -%}
+        {%- set check = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:check', '') -%}
+        {%- set extra = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:extra', '') %}
+    server {{ server }} {{ address }}:{{ port }} {{ check }} {{ extra }}
+      {% endfor %}
     {%- endif -%}
   {% endfor -%}
 {%- endif -%}
@@ -259,7 +267,7 @@ frontend {{ frontend[1].get('name', frontend[0]) }}
 # Backend instances
 #------------------
   {%- for backend in salt['pillar.get']('haproxy:backends', {}).iteritems() %}
-backend {{ backend[1].get('name',backend[0]) }}
+backend {{ backend[1].get('name', backend[0]) }}
     {%- if 'balance' in backend[1] %}
     balance {{ backend[1].balance }}
     {%- endif -%}
@@ -316,8 +324,16 @@ backend {{ backend[1].get('name',backend[0]) }}
     {%- endif -%}
     {%- if 'servers' in backend[1] -%}
       {%- for server in backend[1].servers.iteritems() %}
-    server {{ server[1].get('name',server[0]) }} {{ server[1].host }}:{{ server[1].port }} {{ server[1].check }} {{ server[1].get('extra', '') }}
+    server {{ server[1].get('name', server[0]) }} {{ server[1].host }}:{{ server[1].port }} {{ server[1].check }} {{ server[1].get('extra', '') }}
       {% endfor -%}
+    {%- endif -%}
+    {%- if 'mine_servers_module' in backend[1] and 'mine_servers' in backend[1] -%}
+      {%- for server, address in salt['mine.get'](backend[1].mine_servers, backend[1].mine_servers_module).items() -%}
+        {%- set port = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:port', '80') -%}
+        {%- set check = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:check', '') -%}
+        {%- set extra = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:extra', '') %}
+    server {{ server }} {{ address }}:{{ port }} {{ check }} {{ extra }}
+      {% endfor %}
     {%- endif -%}
   {% endfor -%}
 {%- endif -%}
