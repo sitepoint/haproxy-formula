@@ -55,6 +55,9 @@ haproxy.install:
     - contents: |
         {{ salt['pillar.get']('ssl:%s:key' % ssl_cert) | indent(8) }}
         {{ salt['pillar.get']('ssl:%s:certificate' % ssl_cert) | indent(8) }}
+        {%- if 'intermediate' in salt['pillar.get']('ssl:%s' % ssl_cert) %}
+        {{ salt['pillar.get']('ssl:%s:intermediate' % ssl_cert) | indent(8) }}
+        {% endif %}
         {%- if 'ca' in salt['pillar.get']('ssl:%s' % ssl_cert) %}
         {{ salt['pillar.get']('ssl:%s:ca' % ssl_cert) | indent(8) }}
         {% endif %}
