@@ -66,15 +66,18 @@ Restart rsyslog on haproxy package install:
     - source: salt://haproxy/files/update_ocsp
     - requires:
       - pkg: haproxy
+  cmd.wait:
+    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
+    - require:
+      - file: /usr/local/sbin/update_ocsp
+
+Schedule regular update_ocsp executions via cron:
   cron.present:
+    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
     - identifier: HAPROXY_OCSP_UPDATE
     - user: root
     - minute: 0
     - hour: '*/6'
-    - require:
-      - file: /usr/local/sbin/update_ocsp
-  cmd.wait:
-    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
     - require:
       - file: /usr/local/sbin/update_ocsp
 
