@@ -20,6 +20,17 @@ haproxy.install:
 {% endif %}
 
 {#
+ # See bug report: haproxy install should restart rsyslog
+ # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
+ #}
+Restart rsyslog on haproxy package install:
+  cmd.wait:
+    - name: invoke-rc.d rsyslog restart
+    - onlyif: test -x '/etc/init.d/rsyslog'
+    - watch:
+      - pkg: haproxy
+
+{#
  # This is so HAProxy can confirm Squid is operational. The only known
  # alternative is running a separate webserver for a single file.
  #}
