@@ -19,6 +19,7 @@ haproxy.install:
 {% endfor %}
 {% endif %}
 
+
 {#
  # See bug report: haproxy install should restart rsyslog
  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
@@ -57,6 +58,29 @@ Restart rsyslog on haproxy package install:
     - require:
       - pkg: haproxy
 
+/usr/local/sbin/update_ocsp:
+  file.managed:
+    - user: root
+    - group: root
+    - mode: '0700'
+    - source: salt://haproxy/files/update_ocsp
+    - requires:
+      - pkg: haproxy
+  cmd.wait:
+    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
+    - require:
+      - file: /usr/local/sbin/update_ocsp
+
+Schedule regular update_ocsp executions via cron:
+  cron.present:
+    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
+    - identifier: HAPROXY_OCSP_UPDATE
+    - user: root
+    - minute: 0
+    - hour: '*/6'
+    - require:
+      - file: /usr/local/sbin/update_ocsp
+
 {% for ssl_cert in salt['pillar.get']('ssl') %}
 /etc/haproxy/certs/{{ ssl_cert }}.pem:
   file.managed:
@@ -74,5 +98,7 @@ Restart rsyslog on haproxy package install:
         {% endif %}
     - require:
       - file: /etc/haproxy/certs
+    - watch_in:
+      - cmd: /usr/local/sbin/update_ocsp
 {% endfor %}
 {% endif %}
