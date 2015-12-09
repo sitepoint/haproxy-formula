@@ -15,16 +15,6 @@ import tempfile
 from pprint import pprint
 from subprocess import PIPE, Popen, check_call
 
-ocsp_file_ext = '.pem.ocsp'
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-v', '--verbose', action='store_true')
-parser.add_argument('OCSP_OUT_DIR', help="Where to write the OCSP files to.")
-parser.parse_args()
-args = parser.parse_args()
-ocsp_out_dir = args.OCSP_OUT_DIR
-verbose = args.verbose
-
 # Import the Salt client library
 try:
     import salt.client
@@ -35,110 +25,189 @@ except ImportError as e:
     )
     sys.exit(1)
 
-# Create a temporary directory.
-td = tempfile.mkdtemp(prefix='update-ocsp-')
 
-# Create a local client Caller object
-caller = salt.client.Caller()
+def setup_argparser():
+    """Return a argparse.ArgumentParser instance."""
 
-cert_files = {}
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument(
+        'ocsp_out_dir', metavar='OCSP_OUT_DIR',
+        help="Where to write the OCSP files to."
+    )
+    parser.parse_args()
+    parser_args = parser.parse_args()
 
-# Make calls with the cmd method
-try:
-    results = caller.function('pillar.get', 'ssl')
-except Exception as e:
-    sys.stderr.write("Failure:\n%r\n" % e)
-    sys.exit(1)
-
-
-for cert in results:
-    cert_files.update({cert: {}})
-
-    results[cert].update({'ocsp': ''})
-    for cert_type in ('intermediate', 'ca', 'certificate', 'ocsp'):
-
-        if cert_type in results[cert]:
-            try:
-                os.mkdir(os.path.join(td, cert), 0700)
-            except OSError as e:
-                pass
-
-            # Inconsistent Pillar data structure. 'ca' should be treated
-            # in the same way 'intermediate' certificates are treated.
-            if cert_type == 'ca':
-                cert_type = 'intermediate'
-                write_flag = os.O_CREAT | os.O_APPEND
-                write_mode = 'a'
-            else:
-                write_flag = os.O_CREAT | os.O_WRONLY
-                write_mode = 'w'
-
-            if cert_type != 'ocsp':
-                file_name = os.path.join(td, cert, cert_type)
-            else:
-                file_name = os.path.join(ocsp_out_dir, cert + ocsp_file_ext)
-            cert_files[cert].update({cert_type: file_name})
-
-            if cert_type in results[cert]:
-                with open(file_name, write_mode) as fh:
-                    cert_start = False
-                    for line in results[cert][cert_type].splitlines():
-                        if line == '-----BEGIN CERTIFICATE-----':
-                            cert_start = True
-                        if cert_start:
-                            fh.write(line + '\n')
-
-first_line = True
-for cert in cert_files:
-    get_ocsp_cmd = [
-        'openssl', 'x509', '-in', cert_files[cert]['certificate'], '-text'
-    ]
-    p1 = Popen(get_ocsp_cmd, stdout=PIPE)
-    p2 = Popen(['grep', 'OCSP'], stdin=p1.stdout, stdout=PIPE)
-    p1.stdout.close()
-    ocsp_url = re.sub(r'^[^:]*:', '', p2.communicate()[0]).rstrip()
-
-    if not len(ocsp_url):
-        continue
-
-    if verbose and not first_line:
-        print
-    else:
-        first_line = False
-
-    openssl_cmd = ['openssl', 'ocsp', '-noverify']
-
-    if 'intermediate' in cert_files[cert]:
-        openssl_cmd.extend(['-issuer', cert_files[cert]['intermediate']])
-
-    if 'certificate' in cert_files[cert]:
-        openssl_cmd.extend(['-cert', cert_files[cert]['certificate']])
-
-    openssl_cmd.extend([
-        '-url', ocsp_url, '-no_nonce',
-        '-respout', cert_files[cert]['ocsp']
-    ])
-
-    if verbose:
-        print "# %s\n$ %s" % (cert, " ".join(openssl_cmd))
-        check_call(openssl_cmd)
-    else:
-        FNULL = open(os.devnull, 'w')
-        check_call(openssl_cmd, stdout=FNULL)
-
-# Clean-up operation
-for temp_cert in cert_files:
-    for cert_file in cert_files[temp_cert]:
-        if (
-            os.path.isfile(cert_files[temp_cert][cert_file]) and
-            (
-                os.path.getsize(cert_files[temp_cert][cert_file]) == 0
-                or not cert_files[temp_cert][cert_file].endswith(ocsp_file_ext)
+    # Directory validation check
+    ocsp_out_dir = parser_args.ocsp_out_dir
+    if not os.path.isdir(ocsp_out_dir):
+        sys.stderr.write(
+            "Error: Specified directory '%s' does not exist.\n" % (
+                ocsp_out_dir
             )
-        ):
-            os.remove(cert_files[temp_cert][cert_file])
-            if not cert_files[temp_cert][cert_file].endswith(ocsp_file_ext):
-                cert_dir = os.path.dirname(cert_files[temp_cert][cert_file])
+        )
+        sys.exit(1)
 
-    os.rmdir(cert_dir)
-os.rmdir(td)
+    return vars(parser_args)
+
+
+def get_certs_from_pillar():
+    """Return 'ssl' keys from Salt pillar as a dict."""
+
+    # Create a local client Caller object
+    caller = salt.client.Caller()
+
+    # Make calls with the cmd method
+    try:
+        results = caller.function('pillar.get', 'ssl')
+    except Exception as e:
+        sys.stderr.write("Failure:\n%r\n" % e)
+        sys.exit(1)
+
+    return results
+
+
+def write_certs_to_disk(ssl_pillar, ocsp_out_dir):
+    """Write all public certs in ssl_pillar to individual files.
+
+    The location of each file is specified in the returned dictionary.
+    """
+
+    cert_files = {}
+
+    # Create a temporary directory.
+    td = tempfile.mkdtemp(prefix='update-ocsp-')
+
+    for cert in ssl_pillar:
+        cert_files.update({cert: {}})
+
+        ssl_pillar[cert].update({'ocsp': ''})
+        for cert_type in ('intermediate', 'ca', 'certificate', 'ocsp'):
+
+            if cert_type in ssl_pillar[cert]:
+                try:
+                    os.mkdir(os.path.join(td, cert), 0700)
+                except OSError as e:
+                    pass
+
+                # Inconsistent Pillar data structure. 'ca' should be
+                # treated in the same way 'intermediate' certificates
+                # are treated.
+                if cert_type == 'ca':
+                    cert_type = 'intermediate'
+                    write_flag = os.O_CREAT | os.O_APPEND
+                    write_mode = 'a'
+                else:
+                    write_flag = os.O_CREAT | os.O_WRONLY
+                    write_mode = 'w'
+
+                if cert_type != 'ocsp':
+                    file_name = os.path.join(td, cert, cert_type)
+                else:
+                    file_name = os.path.join(
+                        ocsp_out_dir, cert + ocsp_file_ext
+                    )
+
+                cert_files[cert].update({cert_type: file_name})
+
+                if cert_type in ssl_pillar[cert]:
+                    with open(file_name, write_mode) as fh:
+                        cert_start = False
+                        for line in ssl_pillar[cert][cert_type].splitlines():
+                            if line == '-----BEGIN CERTIFICATE-----':
+                                cert_start = True
+                            if cert_start:
+                                fh.write(line + '\n')
+
+    return cert_files
+
+
+def construct_openssl_ocsp_command(cert_file_locations, verbose):
+    """To be determined."""
+
+    first_line = True
+    for cert in cert_file_locations:
+        get_ocsp_cmd = [
+            'openssl', 'x509', '-in',
+            cert_file_locations[cert]['certificate'], '-text'
+        ]
+        p1 = Popen(get_ocsp_cmd, stdout=PIPE)
+        p2 = Popen(['grep', 'OCSP'], stdin=p1.stdout, stdout=PIPE)
+        p1.stdout.close()
+        ocsp_url = re.sub(r'^[^:]*:', '', p2.communicate()[0]).rstrip()
+
+        if not len(ocsp_url):
+            continue
+
+        if verbose and not first_line:
+            print
+        else:
+            first_line = False
+
+        openssl_cmd = ['openssl', 'ocsp', '-noverify']
+
+        if 'intermediate' in cert_file_locations[cert]:
+            openssl_cmd.extend(
+                ['-issuer', cert_file_locations[cert]['intermediate']]
+            )
+
+        if 'certificate' in cert_file_locations[cert]:
+            openssl_cmd.extend(
+                ['-cert', cert_file_locations[cert]['certificate']]
+            )
+
+        openssl_cmd.extend([
+            '-url', ocsp_url, '-no_nonce',
+            '-respout', cert_file_locations[cert]['ocsp']
+        ])
+
+        if verbose:
+            print "# %s\n$ %s" % (cert, " ".join(openssl_cmd))
+            check_call(openssl_cmd)
+        else:
+            FNULL = open(os.devnull, 'w')
+            check_call(openssl_cmd, stdout=FNULL)
+
+
+def clean_up_certs(cert_file_locations):
+    """Clean up temporary and empty files."""
+
+    for temp_cert in cert_file_locations:
+        for cert_file in cert_file_locations[temp_cert]:
+            if (
+                os.path.isfile(
+                    cert_file_locations[temp_cert][cert_file]
+                ) and (
+                    os.path.getsize(
+                        cert_file_locations[temp_cert][cert_file]
+                    ) == 0 or not
+                    cert_file_locations[temp_cert][cert_file].endswith(
+                        ocsp_file_ext
+                    )
+                )
+            ):
+                os.remove(cert_file_locations[temp_cert][cert_file])
+                if not cert_file_locations[temp_cert][cert_file].endswith(
+                    ocsp_file_ext
+                ):
+                    cert_dir = os.path.dirname(
+                        cert_file_locations[temp_cert][cert_file]
+                    )
+
+        os.rmdir(cert_dir)
+        base_dir = os.path.dirname(cert_dir)
+    os.rmdir(base_dir)
+
+
+if __name__ == "__main__":
+    ocsp_file_ext = '.pem.ocsp'
+
+    args = setup_argparser()
+
+    ssl_pillar = get_certs_from_pillar()
+    cert_file_locations = write_certs_to_disk(
+        ssl_pillar, args['ocsp_out_dir']
+    )
+
+    construct_openssl_ocsp_command(cert_file_locations, args['verbose'])
+    clean_up_certs(cert_file_locations)
