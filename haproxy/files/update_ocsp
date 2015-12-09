@@ -88,7 +88,8 @@ for cert in results:
                         if cert_start:
                             fh.write(line + '\n')
 
-for line, cert in enumerate(cert_files):
+first_line = True
+for cert in cert_files:
     get_ocsp_cmd = [
         'openssl', 'x509', '-in', cert_files[cert]['certificate'], '-text'
     ]
@@ -100,8 +101,10 @@ for line, cert in enumerate(cert_files):
     if not len(ocsp_url):
         continue
 
-    if verbose and line != 0:
+    if verbose and not first_line:
         print
+    else:
+        first_line = False
 
     openssl_cmd = ['openssl', 'ocsp', '-noverify']
 
