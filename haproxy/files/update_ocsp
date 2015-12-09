@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+import textwrap
 from pprint import pprint
 from subprocess import PIPE, Popen, check_call
 
@@ -162,7 +163,11 @@ def construct_openssl_ocsp_command(cert_file_locations, verbose):
         ])
 
         if verbose:
-            print "# %s\n$ %s" % (cert, " ".join(openssl_cmd))
+            print "# %s\n$" % cert,
+            tw = textwrap.TextWrapper(
+                width=78, break_on_hyphens=False, subsequent_indent='    '
+            )
+            print tw.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
             check_call(openssl_cmd)
         else:
             FNULL = open(os.devnull, 'w')
