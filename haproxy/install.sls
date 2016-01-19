@@ -1,4 +1,14 @@
-# Because on Ubuntu we don't have a current HAProxy in the usual repo, we add a PPA
+{% if salt['pillar.get']('haproxy:include') %}
+include:
+{% for item in salt['pillar.get']('haproxy:include') %}
+  - {{ item }}
+{% endfor %}
+{% endif %}
+
+{#
+  Because on Ubuntu we don't have a current HAProxy in the usual repo,
+  we add a PPA
+#}
 {% if salt['grains.get']('osfullname') == 'Ubuntu' %}
 haproxy_ppa_repo:
   pkgrepo.managed:
