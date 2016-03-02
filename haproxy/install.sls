@@ -59,6 +59,13 @@ Restart rsyslog on haproxy package install:
     - require:
       - pkg: haproxy.install
 
+/etc/logrotate.d/haproxy:
+  file.replace:
+    - pattern: '^\s*rotate\s+.*$'
+    - repl: '    rotate {{ salt['pillar.get']('haproxy:log_rotate_days', '7') }}'
+    - require:
+      - pkg: haproxy
+
 {% if 'ssl' in salt['pillar.items']() %}
 /etc/haproxy/certs:
   file.directory:
