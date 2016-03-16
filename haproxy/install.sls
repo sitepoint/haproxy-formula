@@ -63,6 +63,7 @@ Restart rsyslog on haproxy package install:
   file.replace:
     - pattern: '^\s*rotate\s+.*$'
     - repl: '    rotate {{ salt['pillar.get']('haproxy:log_rotate_days', '7') }}'
+    - backup: False
     - require:
       - pkg: haproxy
 
