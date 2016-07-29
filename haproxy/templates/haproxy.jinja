@@ -298,6 +298,11 @@ backend {{ backend[1].get('name', backend[0]) }}
     acl {{ acl }}
       {%- endfor -%}
     {%- endif -%}
+    {%- if 'http_request' in backend[1] %}
+      {%- for http_request in backend[1].http_request %}
+    http-request {{ http_request }}
+      {%- endfor -%}
+    {%- endif -%}
     {%- if 'reqirep' in backend[1] -%}
       {%- for reqirep in backend[1].reqirep %}
     reqirep {{ reqirep }}
@@ -306,11 +311,6 @@ backend {{ backend[1].get('name', backend[0]) }}
     {%- if 'rspirep' in backend[1] -%}
       {%- for rspirep in backend[1].rspirep %}
     rspirep {{ rspirep }}
-      {%- endfor -%}
-    {%- endif -%}
-    {%- if 'http_request' in backend[1] %}
-      {%- for http_request in backend[1].http_request %}
-    http-request {{ http_request }}
       {%- endfor -%}
     {%- endif -%}
     {%- if 'redirects' in backend[1] %}
