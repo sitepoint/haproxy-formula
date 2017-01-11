@@ -15,6 +15,7 @@ import tempfile
 import textwrap
 from pprint import pprint
 from subprocess import PIPE, Popen, check_call
+from urlparse import urlparse
 
 # Import the Salt client library
 try:
@@ -136,6 +137,7 @@ def construct_openssl_ocsp_command(cert_file_locations, verbose):
         p2 = Popen(['grep', 'OCSP'], stdin=p1.stdout, stdout=PIPE)
         p1.stdout.close()
         ocsp_url = re.sub(r'^[^:]*:', '', p2.communicate()[0]).rstrip()
+        ocsp_host = urlparse(ocsp_url).netloc
 
         if not len(ocsp_url):
             continue
@@ -159,6 +161,7 @@ def construct_openssl_ocsp_command(cert_file_locations, verbose):
 
         openssl_cmd.extend([
             '-url', ocsp_url, '-no_nonce',
+            '-header', 'HOST', ocsp_host,
             '-respout', cert_file_locations[cert]['ocsp']
         ])
 
