@@ -10,6 +10,8 @@
 import argparse
 import os
 import re
+import shutil
+import stat
 import sys
 import tempfile
 import textwrap
@@ -69,12 +71,11 @@ def get_certs_from_pillar():
     return results
 
 
-def write_certs_to_disk(ssl_pillar, ocsp_out_dir):
-    """Write all public certs in ssl_pillar to individual files.
+def write_certs_to_disk(ssl_pillar):
+    """Write all public certs in ssl_pillar to individual files
 
     The location of each file is specified in the returned dictionary.
     """
-
     cert_files = {}
 
     # Create a temporary directory.
@@ -103,12 +104,7 @@ def write_certs_to_disk(ssl_pillar, ocsp_out_dir):
                     write_flag = os.O_CREAT | os.O_WRONLY
                     write_mode = 'w'
 
-                if cert_type != 'ocsp':
-                    file_name = os.path.join(td, cert, cert_type)
-                else:
-                    file_name = os.path.join(
-                        ocsp_out_dir, cert + ocsp_file_ext
-                    )
+                file_name = os.path.join(td, cert, cert_type)
 
                 cert_files[cert].update({cert_type: file_name})
 
@@ -124,8 +120,8 @@ def write_certs_to_disk(ssl_pillar, ocsp_out_dir):
     return cert_files
 
 
-def construct_openssl_ocsp_command(cert_file_locations, verbose):
-    """To be determined."""
+def execute_openssl_ocsp_command(cert_file_locations, verbose):
+    """Execute openssl ocsp to generate OCSP file
 
     first_line = True
     for cert in cert_file_locations:
@@ -175,32 +171,53 @@ def construct_openssl_ocsp_command(cert_file_locations, verbose):
         else:
             FNULL = open(os.devnull, 'w')
             check_call(openssl_cmd, stdout=FNULL)
+            if os.path.isfile(cert_file_locations[cert]['ocsp']):
+                os.remove(cert_file_locations[cert]['ocsp'])
+            # Don't exit here, because other certs may still be able
+            # to be processed, and by this point we'll need to execute
+            # clean-up operations.
+
+
+def install_ocsp_certificates(cert_file_locations, ocsp_out_dir):
+    """Copy good certs from temporary location to final target name"""
+    ocsp_file_ext = '.pem.ocsp'
+    for cert, keys in cert_file_locations.items():
+        if keys.get('ocsp', None):
+            if (
+                os.path.isfile(keys['ocsp']) and
+                (os.path.getsize(keys['ocsp']) > 0)
+            ):
+                target_location = os.path.join(
+                    ocsp_out_dir, ''.join([cert, ocsp_file_ext])
+                )
+                # Copy the file.
+                try:
+                    shutil.copy(keys['ocsp'], target_location)
+                    os.chmod(
+                        target_location,
+                        stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | \
+                        stat.S_IROTH
+                    )
+                    os.chown(target_location, 0, 0)
+                except OSError as e:
+                    sys.stderr.write(
+                        "Error: Failed to update '{0}' OCSP file.".format(
+                            target_location
+                        )
+                    )
 
 
 def clean_up_certs(cert_file_locations):
-    """Clean up temporary and empty files."""
-
+    """Clean up temporary and empty files"""
     for temp_cert in cert_file_locations:
         for cert_file in cert_file_locations[temp_cert]:
-            if (
-                os.path.isfile(
+            if os.path.isfile(
                     cert_file_locations[temp_cert][cert_file]
-                ) and (
-                    os.path.getsize(
-                        cert_file_locations[temp_cert][cert_file]
-                    ) == 0 or not
-                    cert_file_locations[temp_cert][cert_file].endswith(
-                        ocsp_file_ext
-                    )
-                )
             ):
                 os.remove(cert_file_locations[temp_cert][cert_file])
-                if not cert_file_locations[temp_cert][cert_file].endswith(
-                    ocsp_file_ext
-                ):
-                    cert_dir = os.path.dirname(
-                        cert_file_locations[temp_cert][cert_file]
-                    )
+                cert_dir = os.path.dirname(
+                    cert_file_locations[temp_cert][cert_file]
+                )
 
         os.rmdir(cert_dir)
         base_dir = os.path.dirname(cert_dir)
@@ -208,14 +225,9 @@ def clean_up_certs(cert_file_locations):
 
 
 if __name__ == "__main__":
-    ocsp_file_ext = '.pem.ocsp'
-
     args = setup_argparser()
-
     ssl_pillar = get_certs_from_pillar()
-    cert_file_locations = write_certs_to_disk(
-        ssl_pillar, args['ocsp_out_dir']
-    )
-
-    construct_openssl_ocsp_command(cert_file_locations, args['verbose'])
+    cert_file_locations = write_certs_to_disk(ssl_pillar)
+    execute_openssl_ocsp_command(cert_file_locations, args['verbose'])
+    install_ocsp_certificates(cert_file_locations, args['ocsp_out_dir'])
     clean_up_certs(cert_file_locations)
