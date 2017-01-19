@@ -57,7 +57,13 @@ def setup_argparser():
 def get_certs_from_pillar():
     """Return 'ssl' keys from Salt pillar as a dict"""
     # Create a local client Caller object
-    caller = salt.client.Caller()
+    try:
+        caller = salt.client.Caller()
+    except salt.exceptions.SaltClientError:
+        sys.stderr.write(
+            "Error: Failed to authenticate with the salt master.\n"
+        )
+        sys.exit(1)
 
     # Make calls with the cmd method
     try:
