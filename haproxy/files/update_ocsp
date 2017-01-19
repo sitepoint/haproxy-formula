@@ -24,15 +24,14 @@ try:
     import salt.client
 except ImportError as e:
     sys.stderr.write(
-        "Failed to load the Salt Stack client library.\n" + \
-        "Try installing the salt-common package.\n"
+        os.join(["Failed to load the Salt Stack client library.\n",
+                 "Try installing the salt-common package.\n"])
     )
     sys.exit(1)
 
 
 def setup_argparser():
-    """Return a argparse.ArgumentParser instance."""
-
+    """Return a argparse.ArgumentParser instance"""
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument(
@@ -56,8 +55,7 @@ def setup_argparser():
 
 
 def get_certs_from_pillar():
-    """Return 'ssl' keys from Salt pillar as a dict."""
-
+    """Return 'ssl' keys from Salt pillar as a dict"""
     # Create a local client Caller object
     caller = salt.client.Caller()
 
@@ -115,7 +113,7 @@ def write_certs_to_disk(ssl_pillar):
                             if line == '-----BEGIN CERTIFICATE-----':
                                 cert_start = True
                             if cert_start:
-                                fh.write(line + '\n')
+                                fh.write(''.join([line, '\n']))
 
     return cert_files
 
@@ -123,7 +121,23 @@ def write_certs_to_disk(ssl_pillar):
 def execute_openssl_ocsp_command(cert_file_locations, verbose):
     """Execute openssl ocsp to generate OCSP file
 
+    The file will be saved to cert_file_locations[cert]['ocsp'].
+    """
+    def verbose_output(first_line, cert, tw):
+        if not first_line:
+            print
+        else:
+            first_line = False
+
+        print "# %s\n$" % cert,
+        print tw.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
+
+        return first_line
+
     first_line = True
+    tw = textwrap.TextWrapper(
+        width=78, break_on_hyphens=False, subsequent_indent='    '
+    )
     for cert in cert_file_locations:
         get_ocsp_cmd = [
             'openssl', 'x509', '-in',
@@ -137,11 +151,6 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
 
         if not len(ocsp_url):
             continue
-
-        if verbose and not first_line:
-            print
-        else:
-            first_line = False
 
         openssl_cmd = ['openssl', 'ocsp', '-noverify']
 
@@ -161,16 +170,19 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
             '-respout', cert_file_locations[cert]['ocsp']
         ])
 
-        if verbose:
-            print "# %s\n$" % cert,
-            tw = textwrap.TextWrapper(
-                width=78, break_on_hyphens=False, subsequent_indent='    '
+        try:
+            if verbose:
+                first_line = verbose_output(first_line, cert, tw)
+                check_call(openssl_cmd)
+            else:
+                FNULL = open(os.devnull, 'w')
+                check_call(openssl_cmd, stdout=FNULL)
+        except subprocess.CalledProcessError:
+            sys.stderr.write(
+                "Error: Failed to fetch OCSP file from '{0}'.".format(
+                    ocsp_url
+                )
             )
-            print tw.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
-            check_call(openssl_cmd)
-        else:
-            FNULL = open(os.devnull, 'w')
-            check_call(openssl_cmd, stdout=FNULL)
             if os.path.isfile(cert_file_locations[cert]['ocsp']):
                 os.remove(cert_file_locations[cert]['ocsp'])
             # Don't exit here, because other certs may still be able
