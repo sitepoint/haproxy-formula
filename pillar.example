@@ -5,6 +5,13 @@
 haproxy:
   enabled: True
   config_file_path: /etc/haproxy/haproxy.cfg
+  logrotate:
+    updates:
+      daily: ''
+      rotate: '5'
+    deletes:
+      - badoption
+  logrotate_file_path: /etc/logrotate.d/haproxy
   global:
     stats:
       enable: True

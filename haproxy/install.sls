@@ -5,10 +5,7 @@ include:
 {% endfor %}
 {% endif %}
 
-{#
-  Because on Ubuntu we don't have a current HAProxy in the usual repo,
-  we add a PPA
-#}
+# If on Ubuntu, add a PPA to use the latest HAProxy releases.
 {% if salt['grains.get']('osfullname') == 'Ubuntu' %}
 haproxy_ppa_repo:
   pkgrepo.managed:
@@ -29,11 +26,8 @@ haproxy.install:
 {% endfor %}
 {% endif %}
 
-
-{#
- # See bug report: haproxy install should restart rsyslog
- # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
- #}
+# See bug report: haproxy install should restart rsyslog
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
 Restart rsyslog on haproxy package install:
   cmd.wait:
     - name: invoke-rc.d rsyslog restart
@@ -41,10 +35,8 @@ Restart rsyslog on haproxy package install:
     - watch:
       - pkg: haproxy
 
-{#
- # This is so HAProxy can confirm Squid is operational. The only known
- # alternative is running a separate webserver for a single file.
- #}
+# This is so HAProxy can confirm Squid is operational. The only known
+# alternative is running a separate webserver for a single file.
 /etc/haproxy/errors/200.http:
   file.managed:
     - contents: |
@@ -59,14 +51,75 @@ Restart rsyslog on haproxy package install:
     - require:
       - pkg: haproxy.install
 
-/etc/logrotate.d/haproxy:
+# Handle logrotate configuration directives.
+{% if salt['pillar.get']('haproxy:logrotate') %}
+{%
+  set logrotate_config = salt['pillar.get'](
+    'haproxy:logrotate_file_path', '/etc/logrotate.d/haproxy'
+  )
+%}
+# Ideally we would just use the append_if_not_found argument, but the
+# last line in the logrotate config file needs to contain "}". We need
+# to add a setting entry just prior, if it's not found.
+{%
+  for setting, value in salt['pillar.get'](
+    'haproxy:logrotate:updates'
+  ).items()
+%}
+Add {{ setting }} to {{ logrotate_config }}:
   file.replace:
-    - pattern: '^\s*rotate\s+.*$'
-    - repl: '    rotate {{ salt['pillar.get']('haproxy:log_rotate_days', '7') }}'
-    - backup: False
+    - name: {{ logrotate_config }}
+    - pattern: '^}$'
+    - repl: '    {{ setting}}\n}'
+    - flags:
+      - MULTILINE
+    - unless: grep -q -E '^\s*{{ setting }}(\s.*|$)' {{ logrotate_config }}
     - require:
-      - pkg: haproxy
+      - pkg: haproxy.install
 
+{% if value %}
+Update {{ setting }} value in {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^(\s*{{ setting }})([^\n]\s*.*)?$'
+    - repl: '\1 {{ value }}'
+    - flags:
+      - MULTILINE
+    - require:
+      - pkg: haproxy.install
+      - file: Add {{ setting }} to {{ logrotate_config }}
+{% else %}
+Remove {{ setting }} value in {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^(\s*{{ setting }})([^\n]\s*.*)?$'
+    - repl: '\1'
+    - flags:
+      - MULTILINE
+    - require:
+      - pkg: haproxy.install
+      - file: Add {{ setting }} to {{ logrotate_config }}
+{% endif %}
+{% endfor %}
+
+{%
+  for setting in salt['pillar.get'](
+    'haproxy:logrotate:deletes'
+  )
+%}
+Delete {{ setting }} from {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^\s*{{ setting }}([^\n]\s*.*)?$\n'
+    - repl: ''
+    - flags:
+      - MULTILINE
+    - require:
+      - pkg: haproxy.install
+{% endfor %}
+{% endif %}
+
+# Handle OCSP stapling.
 {% if 'ssl' in salt['pillar.items']() %}
 /etc/haproxy/certs:
   file.directory:
