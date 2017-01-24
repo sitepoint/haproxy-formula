@@ -59,13 +59,73 @@ Restart rsyslog on haproxy package install:
     - require:
       - pkg: haproxy.install
 
-/etc/logrotate.d/haproxy:
+# Handle logrotate configuration directives.
+{% if salt['pillar.get']('haproxy:logrotate') %}
+{%
+  set logrotate_config = salt['pillar.get'](
+    'haproxy:logrotate_file_path', '/etc/logrotate.d/haproxy'
+  )
+%}
+# Ideally we would just use the append_if_not_found argument, but the
+# last line in the logrotate config file needs to contain "}". We need
+# to add a setting entry just prior, if it's not found.
+{%
+  for setting, value in salt['pillar.get'](
+    'haproxy:logrotate:updates'
+  ).items()
+%}
+Add {{ setting }} to {{ logrotate_config }}:
   file.replace:
-    - pattern: '^\s*rotate\s+.*$'
-    - repl: '    rotate {{ salt['pillar.get']('haproxy:log_rotate_days', '7') }}'
-    - backup: False
+    - name: {{ logrotate_config }}
+    - pattern: '^}$'
+    - repl: '    {{ setting}}\n}'
+    - flags:
+      - MULTILINE
+    - unless: grep -q -E '^\s*{{ setting }}(\s.*|$)' {{ logrotate_config }}
     - require:
-      - pkg: haproxy
+      - pkg: haproxy.install
+
+{% if value %}
+Update {{ setting }} value in {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^(\s*{{ setting }})([^\n]\s*.*)?$'
+    - repl: '\1 {{ value }}'
+    - flags:
+      - MULTILINE
+    - require:
+      - pkg: haproxy.install
+      - file: Add {{ setting }} to {{ logrotate_config }}
+{% else %}
+Remove {{ setting }} value in {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^(\s*{{ setting }})([^\n]\s*.*)?$'
+    - repl: '\1'
+    - flags:
+      - MULTILINE
+    - require:
+      - pkg: haproxy.install
+      - file: Add {{ setting }} to {{ logrotate_config }}
+{% endif %}
+{% endfor %}
+
+{%
+  for setting in salt['pillar.get'](
+    'haproxy:logrotate:deletes'
+  )
+%}
+Delete {{ setting }} from {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^\s*{{ setting }}([^\n]\s*.*)?$\n'
+    - repl: ''
+    - flags:
+      - MULTILINE
+    - require:
+      - pkg: haproxy.install
+{% endfor %}
+{% endif %}
 
 {% if 'ssl' in salt['pillar.items']() %}
 /etc/haproxy/certs:
