@@ -5,10 +5,7 @@ include:
 {% endfor %}
 {% endif %}
 
-{#
-  Because on Ubuntu we don't have a current HAProxy in the usual repo,
-  we add a PPA
-#}
+# If on Ubuntu, add a PPA to use the latest HAProxy releases.
 {% if salt['grains.get']('osfullname') == 'Ubuntu' %}
 haproxy_ppa_repo:
   pkgrepo.managed:
@@ -29,11 +26,8 @@ haproxy.install:
 {% endfor %}
 {% endif %}
 
-
-{#
- # See bug report: haproxy install should restart rsyslog
- # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
- #}
+# See bug report: haproxy install should restart rsyslog
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
 Restart rsyslog on haproxy package install:
   cmd.wait:
     - name: invoke-rc.d rsyslog restart
@@ -41,10 +35,8 @@ Restart rsyslog on haproxy package install:
     - watch:
       - pkg: haproxy
 
-{#
- # This is so HAProxy can confirm Squid is operational. The only known
- # alternative is running a separate webserver for a single file.
- #}
+# This is so HAProxy can confirm Squid is operational. The only known
+# alternative is running a separate webserver for a single file.
 /etc/haproxy/errors/200.http:
   file.managed:
     - contents: |
@@ -127,6 +119,7 @@ Delete {{ setting }} from {{ logrotate_config }}:
 {% endfor %}
 {% endif %}
 
+# Handle OCSP stapling.
 {% if 'ssl' in salt['pillar.items']() %}
 /etc/haproxy/certs:
   file.directory:
