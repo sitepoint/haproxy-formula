@@ -73,6 +73,7 @@ Add {{ setting }} to {{ logrotate_config }}:
     - repl: '    {{ setting}}\n}'
     - flags:
       - MULTILINE
+    - backup: False
     - unless: grep -q -E '^\s*{{ setting }}(\s.*|$)' {{ logrotate_config }}
     - require:
       - pkg: haproxy.install
@@ -85,6 +86,7 @@ Update {{ setting }} value in {{ logrotate_config }}:
     - repl: '\1 {{ value }}'
     - flags:
       - MULTILINE
+    - backup: False
     - require:
       - pkg: haproxy.install
       - file: Add {{ setting }} to {{ logrotate_config }}
@@ -96,6 +98,7 @@ Remove {{ setting }} value in {{ logrotate_config }}:
     - repl: '\1'
     - flags:
       - MULTILINE
+    - backup: False
     - require:
       - pkg: haproxy.install
       - file: Add {{ setting }} to {{ logrotate_config }}
@@ -114,6 +117,7 @@ Delete {{ setting }} from {{ logrotate_config }}:
     - repl: ''
     - flags:
       - MULTILINE
+    - backup: False
     - require:
       - pkg: haproxy.install
 {% endfor %}
