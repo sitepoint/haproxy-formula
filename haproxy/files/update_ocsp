@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 #
-# (c) 2015 SitePoint Pty Ltd
+# (c) 2017 SitePoint Pty Ltd
 # Maintainer: Adam Bolte
 #
 # Add HAProxy OCSP Stapling support based on the Mozilla instructions:
 # https://wiki.mozilla.org/Security/Server_Side_TLS#Haproxy
-
 
 import argparse
 import os
@@ -65,7 +64,6 @@ def get_certs_from_pillar():
         )
         sys.exit(1)
 
-    # Make calls with the cmd method
     try:
         results = caller.function('pillar.get', 'ssl')
     except Exception as e:
@@ -87,11 +85,12 @@ def write_certs_to_disk(ssl_pillar):
 
     for cert in ssl_pillar:
         cert_files.update({cert: {}})
-
         ssl_pillar[cert].update({'ocsp': ''})
-        for cert_type in ('intermediate', 'ca', 'certificate', 'ocsp'):
 
-            if cert_type in ssl_pillar[cert]:
+        for cert_type in ('certificate', 'ca', 'intermediate', 'ocsp'):
+            if cert_type in ssl_pillar[cert] and (
+                ssl_pillar[cert][cert_type] or cert_type == 'ocsp'
+            ):
                 try:
                     os.mkdir(os.path.join(td, cert), 0700)
                 except OSError as e:
@@ -100,26 +99,27 @@ def write_certs_to_disk(ssl_pillar):
                 # Inconsistent Pillar data structure. 'ca' should be
                 # treated in the same way 'intermediate' certificates
                 # are treated.
-                if cert_type == 'ca':
-                    cert_type = 'intermediate'
-                    write_flag = os.O_CREAT | os.O_APPEND
-                    write_mode = 'a'
-                else:
-                    write_flag = os.O_CREAT | os.O_WRONLY
-                    write_mode = 'w'
+                cert_key = cert_type
+                write_mode = 'w'
+                if cert_type == 'intermediate':
+                    cert_key = 'ca'
+                    if ('ca' in ssl_pillar[cert] and
+                        ssl_pillar[cert]['ca']):
+                        # Append 'intermediate' certificates to 'ca'
+                        # certificates if we have both in Pillar.
+                        write_mode = 'a'
 
-                file_name = os.path.join(td, cert, cert_type)
+                file_name = os.path.join(td, cert, cert_key)
+                cert_files[cert].update({cert_key: file_name})
 
-                cert_files[cert].update({cert_type: file_name})
-
-                if cert_type in ssl_pillar[cert]:
-                    with open(file_name, write_mode) as fh:
-                        cert_start = False
-                        for line in ssl_pillar[cert][cert_type].splitlines():
-                            if line == '-----BEGIN CERTIFICATE-----':
-                                cert_start = True
-                            if cert_start:
-                                fh.write(''.join([line, '\n']))
+                with open(file_name, write_mode) as fh:
+                    cert_start = False
+                    for line in \
+                        ssl_pillar[cert][cert_type].strip().splitlines():
+                        if line == '-----BEGIN CERTIFICATE-----':
+                            cert_start = True
+                        if cert_start:
+                            fh.write(''.join([line, '\n']))
 
     return cert_files
 
@@ -160,9 +160,9 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
 
         openssl_cmd = ['openssl', 'ocsp', '-noverify']
 
-        if 'intermediate' in cert_file_locations[cert]:
+        if 'ca' in cert_file_locations[cert]:
             openssl_cmd.extend(
-                ['-issuer', cert_file_locations[cert]['intermediate']]
+                ['-issuer', cert_file_locations[cert]['ca']]
             )
 
         if 'certificate' in cert_file_locations[cert]:
