@@ -70,7 +70,7 @@ Add {{ setting }} to {{ logrotate_config }}:
   file.replace:
     - name: {{ logrotate_config }}
     - pattern: '^}$'
-    - repl: '    {{ setting}}\n}'
+    - repl: '    {{ setting }}\n}'
     - flags:
       - MULTILINE
     - backup: False
