@@ -1,3 +1,10 @@
+{%-
+  set syslog_file_path = salt['pillar.get'](
+    'haproxy:syslog_file_path',
+    '/etc/rsyslog.d/49-haproxy.conf'
+  )
+%}
+
 {% if salt['pillar.get']('haproxy:include') %}
 include:
 {% for item in salt['pillar.get']('haproxy:include') %}
@@ -34,6 +41,9 @@ Restart rsyslog on haproxy package install:
     - onlyif: test -x '/etc/init.d/rsyslog'
     - watch:
       - pkg: haproxy
+{% if salt['pillar.get']('haproxy:log_file_path') %}
+      - file: Update HAProxy log file path in {{ syslog_file_path }}
+{% endif %}
 
 # This is so HAProxy can confirm Squid is operational. The only known
 # alternative is running a separate webserver for a single file.
@@ -51,6 +61,30 @@ Restart rsyslog on haproxy package install:
     - require:
       - pkg: haproxy.install
 
+{% if 'log_file_path' in salt['pillar.get']('haproxy') %}
+Create the HAProxy logging output directory:
+  file.directory:
+    - name: {{ salt['pillar.get'](
+        'haproxy:log_file_path')[::-1].split('/', 1)[1][::-1]
+      }}
+    - user: root
+    - group: adm
+    - mode: '0750'
+{% endif %}
+
+# Handle rsyslog configuration directives.
+{% if salt['pillar.get']('haproxy:log_file_path') %}
+Update HAProxy log file path in {{ syslog_file_path }}:
+  file.replace:
+    - name: {{ syslog_file_path }}
+    - pattern: ^(if\ \$programname\ startswith\ \'haproxy\'\ then)\ .*$
+    - repl:  \1 {{ salt['pillar.get']('haproxy:log_file_path') }}
+    - backup: False
+    - require:
+      - pkg: haproxy.install
+      - file: Create the HAProxy logging output directory
+{% endif %}
+
 # Handle logrotate configuration directives.
 {% if salt['pillar.get']('haproxy:logrotate') %}
 {%
@@ -58,6 +92,20 @@ Restart rsyslog on haproxy package install:
     'haproxy:logrotate_file_path', '/etc/logrotate.d/haproxy'
   )
 %}
+{% if 'log_file_path' in salt['pillar.get']('haproxy') %}
+Update HAProxy log file path in {{ logrotate_config }}:
+  file.replace:
+    - name: {{ logrotate_config }}
+    - pattern: '^(\/[^ ]+)\ +{$'
+    - repl:  {{
+        salt['pillar.get']('haproxy:log_file_path', '/var/log/haproxy.log')
+      }} {
+    - backup: False
+    - require:
+      - pkg: haproxy.install
+      - file: Create the HAProxy logging output directory
+{% endif %}
+
 # Ideally we would just use the append_if_not_found argument, but the
 # last line in the logrotate config file needs to contain "}". We need
 # to add a setting entry just prior, if it's not found.
@@ -70,7 +118,7 @@ Add {{ setting }} to {{ logrotate_config }}:
   file.replace:
     - name: {{ logrotate_config }}
     - pattern: '^}$'
-    - repl: '    {{ setting}}\n}'
+    - repl: '    {{ setting }}\n}'
     - flags:
       - MULTILINE
     - backup: False
