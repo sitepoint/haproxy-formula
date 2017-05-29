@@ -35,14 +35,15 @@ haproxy.install:
 
 # See bug report: haproxy install should restart rsyslog
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
+{% if salt['pkg.version']('rsyslog') %}
 Restart rsyslog on haproxy package install:
-  cmd.wait:
-    - name: invoke-rc.d rsyslog restart
-    - onlyif: test -x '/etc/init.d/rsyslog'
+  service.running:
+    - name: rsyslog
     - watch:
       - pkg: haproxy
 {% if salt['pillar.get']('haproxy:log_file_path') %}
       - file: Update HAProxy log file path in {{ syslog_file_path }}
+{% endif %}
 {% endif %}
 
 # This is so HAProxy can confirm Squid is operational. The only known
