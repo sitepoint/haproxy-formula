@@ -333,7 +333,8 @@ backend {{ backend[1].get('name', backend[0]) }}
       {% endfor -%}
     {%- endif -%}
     {%- if 'mine_servers_module' in backend[1] and 'mine_servers' in backend[1] -%}
-      {%- for server, address in salt['mine.get'](backend[1].mine_servers, backend[1].mine_servers_module).items() -%}
+      {%- set match_type = backend[1].get('mine_servers_match_type', 'glob') %}
+      {%- for server, address in salt['mine.get'](backend[1].mine_servers, backend[1].mine_servers_module, match_type).items() -%}
         {%- set port = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:port', '80') -%}
         {%- set check = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:check', '') -%}
         {%- set extra = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:extra', '') %}
