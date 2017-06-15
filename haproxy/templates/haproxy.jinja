@@ -28,7 +28,16 @@ global
 {%- if salt['pillar.get']('haproxy:global:stats:enable', 'no') == True %}
 
     # Stats support is currently limited to socket mode
-    stats socket {{ salt['pillar.get']('haproxy:global:stats:socketpath', '/tmp/ha_stats.sock') }}
+    stats socket {{
+      salt['pillar.get'](
+        'haproxy:global:stats:socketpath', '/tmp/ha_stats.sock'
+      )
+    }} {%-
+      if 'options' in salt['pillar.get']('haproxy:global:stats', {})
+    -%} {%-
+        for option in salt['pillar.get']('haproxy:global:stats:options')
+      %} {{ option }} {%- endfor -%}
+    {%- endif -%}
 {%- endif %}
 
 
