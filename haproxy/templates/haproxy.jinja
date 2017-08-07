@@ -189,7 +189,7 @@ listen {{ listener[1].get('name', listener[0]) }}
       {%- endfor -%}
     {%- endif -%}
     {%- if 'mine_servers_module' in listener[1] and 'mine_servers' in listener[1] -%}
-      {%- for server, address in salt['mine.get'](listener[1].mine_servers, listener[1].mine_servers_module).items() -%}
+      {%- for server, address in salt['mine.get'](listener[1].mine_servers, listener[1].mine_servers_module).items()|sort -%}
         {%- set port = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:port', '80') -%}
         {%- set check = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:check', '') -%}
         {%- set extra = salt['pillar.get']('haproxy:listeners:' + listener[0] + ':mine_servers_extras:extra', '') %}
@@ -343,7 +343,7 @@ backend {{ backend[1].get('name', backend[0]) }}
     {%- endif -%}
     {%- if 'mine_servers_module' in backend[1] and 'mine_servers' in backend[1] -%}
       {%- set match_type = backend[1].get('mine_servers_match_type', 'glob') %}
-      {%- for server, address in salt['mine.get'](backend[1].mine_servers, backend[1].mine_servers_module, match_type).items() -%}
+      {%- for server, address in salt['mine.get'](backend[1].mine_servers, backend[1].mine_servers_module, match_type).items()|sort -%}
         {%- set port = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:port', '80') -%}
         {%- set check = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:check', '') -%}
         {%- set extra = salt['pillar.get']('haproxy:backends:' + backend[0] + ':mine_servers_extras:extra', '') %}
