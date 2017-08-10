@@ -19,8 +19,6 @@ haproxy_ppa_repo:
     - ppa: vbernat/haproxy-1.5
     - require_in:
       - pkg: haproxy.install
-    - watch_in:
-      - pkg: haproxy.install
 {% endif %}
 
 haproxy.install:
