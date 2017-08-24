@@ -59,22 +59,20 @@ defaults
   {%- endfor %}
 {%- endif %}
 {%- if 'errorfiles' in salt['pillar.get']('haproxy:defaults', {}) %}
-  {%- for errorfile in salt['pillar.get']('haproxy:defaults:errorfiles').items()|sort %}
-    errorfile {{ errorfile[0] }} {{ errorfile[1] }}
+  {%- for error_code, error_file in salt['pillar.get']('haproxy:defaults:errorfiles').items()|sort %}
+    errorfile {{ error_code }} {{ error_file }}
   {%- endfor %}
 {% endif %}
-{%- if salt['pillar.get']('haproxy:resolvers') %}
+{%- if 'resolvers' in salt['pillar.get']('haproxy', {}) %}
 
 #------------------
 # DNS resolvers
 #------------------
-{%- for resolver in salt['pillar.get']('haproxy:resolvers', {}).items()|sort %}
-resolvers {{ resolver[0] }}
-  {%- if 'options' in resolver[1] %}
-      {%- for option in resolver[1].options %}
+{%- for resolver, resolver_opts in salt['pillar.get']('haproxy:resolvers').items()|sort %}
+resolvers {{ resolver }}
+  {%- for option in resolver_opts.get('options', ()) %}
     {{ option }}
-      {%- endfor %}
-  {%- endif %}
+  {%- endfor %}
 {% endfor %}
 {%- endif %}
 {%- if 'userlist' in salt['pillar.get']('haproxy', {}) %}
@@ -138,8 +136,8 @@ listen {{ listener_config.name|default(listener) }}
       {%- endfor %}
     {%- endif %}
     {%- if 'errorfiles' in listener_config %}
-      {%- for errorfile in listener_config.errorfiles.items()|sort %}
-    errorfile {{ errorfile[0] }} {{ errorfile[1] }}
+      {%- for error_code, error_file in listener_config.get('errorfiles').items()|sort %}
+    errorfile {{ error_code }} {{ error_file }}
       {%- endfor %}
     {%- endif %}
     {%- if 'default_backend' in listener_config %}
@@ -178,7 +176,7 @@ listen {{ listener_config.name|default(listener) }}
     {%- if 'defaultserver' in listener_config %}
     default-server {%- for option, value in listener_config.defaultserver.items() %} {{ ' '.join((option, value|string, '')) }} {%- endfor %}
     {%- endif %}
-    {%- if 'servers' in listener_config %}
+    {%- if 'servers' in listener_config and listener_config.servers is iterable() %}
       {%- for server, server_config in listener_config.servers.items()|sort %}
     server {{ server_config.name|default(server) }} {{ server_config.host }}:{{ server_config.port }} {{ server_config.check }}
       {%- endfor %}
@@ -329,7 +327,7 @@ backend {{ backend_config.name|default(backend) }}
     {%- if 'defaultserver' in backend_config %}
     default-server {%- for option, value in backend_config.defaultserver.items() %} {{ ' '.join((option, value|string, '')) }} {%- endfor %}
     {%- endif %}
-    {%- if 'servers' in backend_config %}
+    {%- if 'servers' in backend_config and backend_config.servers is iterable() %}
       {%- for server, server_config in backend_config.servers.items()|sort %}
     server {{ server_config.name|default(server) }} {{ server_config.host }}:{{ server_config.port }} {{ server_config.check }} {{ server_config.extra|default('') }}
       {%- endfor %}
