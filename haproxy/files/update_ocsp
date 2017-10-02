@@ -1,10 +1,12 @@
 #!/usr/bin/env python
-#
-# (c) 2017 SitePoint Pty Ltd
-# Maintainer: Adam Bolte
-#
-# Add HAProxy OCSP Stapling support based on the Mozilla instructions:
-# https://wiki.mozilla.org/Security/Server_Side_TLS#Haproxy
+"""Add HAProxy OCSP Stapling support
+
+Based on the Mozilla instructions:
+https://wiki.mozilla.org/Security/Server_Side_TLS#Haproxy
+
+(c) 2017 SitePoint Pty Ltd
+Maintainer: Adam Bolte
+"""
 
 import argparse
 import os
@@ -15,17 +17,15 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from pprint import pprint
 from urlparse import urlparse
 
 # Import the Salt client library
 try:
     import salt.client
-except ImportError as e:
+except ImportError:
     sys.stderr.write(
-        os.join(["Failed to load the Salt Stack client library.\n",
-                 "Try installing the salt-common package.\n"])
-    )
+        os.path.join(["Failed to load the Salt Stack client library.\n",
+                      "Try installing the salt-common package.\n"]))
     sys.exit(1)
 
 
@@ -33,10 +33,8 @@ def setup_argparser():
     """Return a argparse.ArgumentParser instance"""
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument(
-        'ocsp_out_dir', metavar='OCSP_OUT_DIR',
-        help="Where to write the OCSP files to."
-    )
+    parser.add_argument('ocsp_out_dir', metavar='OCSP_OUT_DIR',
+                        help="Where to write the OCSP files to.")
     parser.parse_args()
     parser_args = parser.parse_args()
 
@@ -45,9 +43,7 @@ def setup_argparser():
     if not os.path.isdir(ocsp_out_dir):
         sys.stderr.write(
             "Error: Specified directory '%s' does not exist.\n" % (
-                ocsp_out_dir
-            )
-        )
+                ocsp_out_dir))
         sys.exit(1)
 
     return vars(parser_args)
@@ -60,19 +56,21 @@ def get_certs_from_pillar():
         caller = salt.client.Caller()
     except salt.exceptions.SaltClientError:
         sys.stderr.write(
-            "Error: Failed to authenticate with the salt master.\n"
-        )
+            "Error: Failed to authenticate with the salt master.\n")
         sys.exit(1)
     except salt.exceptions.SaltReqTimeoutError:
         sys.stderr.write(
-            "Error: The Salt master timed out. Pillar unavailable.\n"
-        )
+            "Error: The Salt master timed out. Pillar unavailable.\n")
+        sys.exit(1)
+    except salt.exceptions.SaltException as exception:
+        sys.stderr.write(
+            "Failure:\n%r\n" % exception)
         sys.exit(1)
 
     try:
         results = caller.function('pillar.get', 'ssl')
-    except Exception as e:
-        sys.stderr.write("Failure:\n%r\n" % e)
+    except salt.exceptions.SaltException as exception:
+        sys.stderr.write("Failure:\n%r\n" % exception)
         sys.exit(1)
 
     return results
@@ -86,7 +84,7 @@ def write_certs_to_disk(ssl_pillar):
     cert_files = {}
 
     # Create a temporary directory.
-    td = tempfile.mkdtemp(prefix='update-ocsp-')
+    temp_dir = tempfile.mkdtemp(prefix='update-ocsp-')
 
     for cert in ssl_pillar:
         cert_files.update({cert: {}})
@@ -94,11 +92,10 @@ def write_certs_to_disk(ssl_pillar):
 
         for cert_type in ('certificate', 'ca', 'intermediate', 'ocsp'):
             if cert_type in ssl_pillar[cert] and (
-                ssl_pillar[cert][cert_type] or cert_type == 'ocsp'
-            ):
+                    ssl_pillar[cert][cert_type] or cert_type == 'ocsp'):
                 try:
-                    os.mkdir(os.path.join(td, cert), 0700)
-                except OSError as e:
+                    os.mkdir(os.path.join(temp_dir, cert), 0700)
+                except OSError:
                     pass
 
                 # Inconsistent Pillar data structure. 'ca' should be
@@ -108,23 +105,23 @@ def write_certs_to_disk(ssl_pillar):
                 write_mode = 'w'
                 if cert_type == 'intermediate':
                     cert_key = 'ca'
-                    if ('ca' in ssl_pillar[cert] and
-                        ssl_pillar[cert]['ca']):
+                    if 'ca' in ssl_pillar[cert] and (
+                            ssl_pillar[cert]['ca']):
                         # Append 'intermediate' certificates to 'ca'
                         # certificates if we have both in Pillar.
                         write_mode = 'a'
 
-                file_name = os.path.join(td, cert, cert_key)
+                file_name = os.path.join(temp_dir, cert, cert_key)
                 cert_files[cert].update({cert_key: file_name})
 
-                with open(file_name, write_mode) as fh:
+                with open(file_name, write_mode) as file_handle:
                     cert_start = False
                     for line in \
                         ssl_pillar[cert][cert_type].strip().splitlines():
                         if line == '-----BEGIN CERTIFICATE-----':
                             cert_start = True
                         if cert_start:
-                            fh.write(''.join([line, '\n']))
+                            file_handle.write(''.join([line, '\n']))
 
     return cert_files
 
@@ -134,31 +131,32 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
 
     The file will be saved to cert_file_locations[cert]['ocsp'].
     """
-    def verbose_output(first_line, cert, tw):
+    def verbose_output(first_line, cert, text_wrapper):
+        """Print certificates to stdout"""
         if not first_line:
             print
         else:
             first_line = False
 
         print "# %s\n$" % cert,
-        print tw.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
+        print text_wrapper.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
 
         return first_line
 
     first_line = True
-    tw = textwrap.TextWrapper(
-        width=78, break_on_hyphens=False, subsequent_indent='    '
-    )
+    text_wrapper = textwrap.TextWrapper(width=78, break_on_hyphens=False,
+                                        subsequent_indent='    ')
     for cert in cert_file_locations:
-        get_ocsp_cmd = [
-            'openssl', 'x509', '-in',
-            cert_file_locations[cert]['certificate'], '-text'
-        ]
-        p1 = subprocess.Popen(get_ocsp_cmd, stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(['grep', 'OCSP'], stdin=p1.stdout,
-                              stdout=subprocess.PIPE)
-        p1.stdout.close()
-        ocsp_url = re.sub(r'^[^:]*:', '', p2.communicate()[0]).rstrip()
+        get_ocsp_cmd = ['openssl', 'x509', '-in',
+                        cert_file_locations[cert]['certificate'], '-text']
+        openssl_process = subprocess.Popen(get_ocsp_cmd,
+                                           stdout=subprocess.PIPE)
+        grep_process = subprocess.Popen(['grep', 'OCSP'],
+                                        stdin=openssl_process.stdout,
+                                        stdout=subprocess.PIPE)
+        openssl_process.stdout.close()
+        ocsp_url = re.sub(r'^[^:]*:', '',
+                          grep_process.communicate()[0]).rstrip()
         ocsp_host = urlparse(ocsp_url).netloc
 
         if not len(ocsp_url):
@@ -167,34 +165,27 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
         openssl_cmd = ['openssl', 'ocsp', '-noverify']
 
         if 'ca' in cert_file_locations[cert]:
-            openssl_cmd.extend(
-                ['-issuer', cert_file_locations[cert]['ca']]
-            )
+            openssl_cmd.extend(['-issuer', cert_file_locations[cert]['ca']])
 
         if 'certificate' in cert_file_locations[cert]:
             openssl_cmd.extend(
-                ['-cert', cert_file_locations[cert]['certificate']]
-            )
+                ['-cert', cert_file_locations[cert]['certificate']])
 
-        openssl_cmd.extend([
-            '-url', ocsp_url, '-no_nonce',
-            '-header', 'HOST', ocsp_host,
-            '-respout', cert_file_locations[cert]['ocsp']
-        ])
+        openssl_cmd.extend(['-url', ocsp_url, '-no_nonce', '-header', 'HOST',
+                            ocsp_host, '-respout',
+                            cert_file_locations[cert]['ocsp']])
 
         try:
             if verbose:
-                first_line = verbose_output(first_line, cert, tw)
+                first_line = verbose_output(first_line, cert, text_wrapper)
                 subprocess.check_call(openssl_cmd)
             else:
-                FNULL = open(os.devnull, 'w')
-                subprocess.check_call(openssl_cmd, stdout=FNULL)
+                null_file = open(os.devnull, 'w')
+                subprocess.check_call(openssl_cmd, stdout=null_file)
         except subprocess.CalledProcessError:
             sys.stderr.write(
                 "Error: Failed to fetch OCSP file from '{0}'.".format(
-                    ocsp_url
-                )
-            )
+                    ocsp_url))
             if os.path.isfile(cert_file_locations[cert]['ocsp']):
                 os.remove(cert_file_locations[cert]['ocsp'])
             # Don't exit here, because other certs may still be able
@@ -207,28 +198,21 @@ def install_ocsp_certificates(cert_file_locations, ocsp_out_dir):
     ocsp_file_ext = '.pem.ocsp'
     for cert, keys in cert_file_locations.items():
         if keys.get('ocsp', None):
-            if (
-                os.path.isfile(keys['ocsp']) and
-                (os.path.getsize(keys['ocsp']) > 0)
-            ):
+            if os.path.isfile(keys['ocsp']) and (
+                    os.path.getsize(keys['ocsp']) > 0):
                 target_location = os.path.join(
-                    ocsp_out_dir, ''.join([cert, ocsp_file_ext])
-                )
+                    ocsp_out_dir, ''.join([cert, ocsp_file_ext]))
                 # Copy the file.
                 try:
                     shutil.copy(keys['ocsp'], target_location)
-                    os.chmod(
-                        target_location,
-                        stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | \
-                        stat.S_IROTH
-                    )
+                    os.chmod(target_location,
+                             stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | \
+                             stat.S_IROTH)
                     os.chown(target_location, 0, 0)
-                except OSError as e:
+                except OSError:
                     sys.stderr.write(
                         "Error: Failed to update '{0}' OCSP file.".format(
-                            target_location
-                        )
-                    )
+                            target_location))
 
 
 def clean_up_certs(cert_file_locations):
@@ -236,22 +220,25 @@ def clean_up_certs(cert_file_locations):
     for temp_cert in cert_file_locations:
         for cert_file in cert_file_locations[temp_cert]:
             if os.path.isfile(
-                    cert_file_locations[temp_cert][cert_file]
-            ):
+                    cert_file_locations[temp_cert][cert_file]):
                 os.remove(cert_file_locations[temp_cert][cert_file])
                 cert_dir = os.path.dirname(
-                    cert_file_locations[temp_cert][cert_file]
-                )
+                    cert_file_locations[temp_cert][cert_file])
 
         os.rmdir(cert_dir)
         base_dir = os.path.dirname(cert_dir)
     os.rmdir(base_dir)
 
 
-if __name__ == "__main__":
+def main():
+    """Begin execution"""
     args = setup_argparser()
     ssl_pillar = get_certs_from_pillar()
     cert_file_locations = write_certs_to_disk(ssl_pillar)
     execute_openssl_ocsp_command(cert_file_locations, args['verbose'])
     install_ocsp_certificates(cert_file_locations, args['ocsp_out_dir'])
     clean_up_certs(cert_file_locations)
+
+
+if __name__ == "__main__":
+    main()
