@@ -63,6 +63,11 @@ def get_certs_from_pillar():
             "Error: Failed to authenticate with the salt master.\n"
         )
         sys.exit(1)
+    except salt.exceptions.SaltReqTimeoutError:
+        sys.stderr.write(
+            "Error: The Salt master timed out. Pillar unavailable.\n"
+        )
+        sys.exit(1)
 
     try:
         results = caller.function('pillar.get', 'ssl')
