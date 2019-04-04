@@ -117,6 +117,11 @@ listen {{ listener_config.name|default(listener) }}
     acl {{ acl }}
       {%- endfor %}
     {%- endif %}
+    {%- if 'http_request' in listener_config %}
+      {%- for http_request in listener_config.http_request %}
+    http-request {{ http_request }}
+      {%- endfor %}
+    {%- endif %}
     {%- if 'redirects' in listener_config %}
       {%- for front_redirect in listener_config.redirects %}
     redirect {{ front_redirect }}
