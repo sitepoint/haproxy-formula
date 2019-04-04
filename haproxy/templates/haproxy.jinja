@@ -117,6 +117,16 @@ listen {{ listener_config.name|default(listener) }}
     acl {{ acl }}
       {%- endfor %}
     {%- endif %}
+    {%- if 'http_request' in listener_config %}
+      {%- for http_request in listener_config.http_request %}
+    http-request {{ http_request }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if 'http_request' in listener_config %}
+      {%- for http_request in listener_config.http_request %}
+    http-request {{ http_request }}
+      {%- endfor %}
+    {%- endif %}
     {%- if 'redirects' in listener_config %}
       {%- for front_redirect in listener_config.redirects %}
     redirect {{ front_redirect }}
@@ -228,6 +238,11 @@ frontend {{ frontend_config.name|default(frontend) }}
     http-request {{ http_request }}
       {%- endfor %}
     {%- endif %}
+    {%- if 'http_response' in frontend_config %}
+      {%- for http_response in frontend_config.http_response %}
+    http-response {{ http_response }}
+      {%- endfor %}
+    {%- endif %}
     {%- if 'reqirep' in frontend_config %}
       {%- for reqirep in frontend_config.reqirep %}
     reqirep {{ reqirep }}
@@ -296,6 +311,11 @@ backend {{ backend_config.name|default(backend) }}
     {%- if 'acls' in backend_config %}
       {%- for acl in backend_config.acls %}
     acl {{ acl }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if 'http_request' in backend_config %}
+      {%- for http_request in backend_config.http_request %}
+    http-request {{ http_request }}
       {%- endfor %}
     {%- endif %}
     {%- if 'http_request' in backend_config %}
