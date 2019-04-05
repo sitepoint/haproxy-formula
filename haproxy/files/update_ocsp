@@ -193,8 +193,23 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
             # clean-up operations.
 
 
+def reload_haproxy():
+    """Reload the HAProxy service"""
+    reload_cmd = ['service', 'haproxy', 'reload']
+    sysvinit_file = '/etc/init.d/haproxy'
+    systemd_file = ('/etc/systemd/system/multi-user.target.wants/'
+                    'haproxy.service')
+    if os.path.isfile(sysvinit_file) or os.path.isfile(systemd_file):
+        null_file = open(os.devnull, 'w')
+        try:
+            subprocess.check_call(reload_cmd, stdout=null_file)
+        except subprocess.CalledProcessError:
+            sys.stderr.write("Error: Failed to reload the haproxy service")
+
+
 def install_ocsp_certificates(cert_file_locations, ocsp_out_dir):
     """Copy good certs from temporary location to final target name"""
+    do_reload = False
     ocsp_file_ext = '.pem.ocsp'
     for cert, keys in cert_file_locations.items():
         if keys.get('ocsp', None):
@@ -209,10 +224,13 @@ def install_ocsp_certificates(cert_file_locations, ocsp_out_dir):
                              stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | \
                              stat.S_IROTH)
                     os.chown(target_location, 0, 0)
+                    do_reload = True
                 except OSError:
                     sys.stderr.write(
                         "Error: Failed to update '{0}' OCSP file.".format(
                             target_location))
+    if do_reload:
+        reload_haproxy()
 
 
 def clean_up_certs(cert_file_locations):
