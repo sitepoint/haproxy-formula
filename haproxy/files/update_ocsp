@@ -171,9 +171,9 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
             openssl_cmd.extend(
                 ['-cert', cert_file_locations[cert]['certificate']])
 
-        openssl_cmd.extend(['-url', ocsp_url, '-no_nonce', '-header', 'HOST',
-                            ocsp_host, '-respout',
-                            cert_file_locations[cert]['ocsp']])
+        openssl_cmd.extend(['-url', ocsp_url, '-no_nonce',
+                            '-header', 'Host={0}'.format(ocsp_host),
+                            '-respout', cert_file_locations[cert]['ocsp']])
 
         try:
             if verbose:
