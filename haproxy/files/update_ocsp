@@ -2,9 +2,9 @@
 """Add HAProxy OCSP Stapling support
 
 Based on the Mozilla instructions:
-https://wiki.mozilla.org/Security/Server_Side_TLS#Haproxy
+https://wiki.mozilla.org/Security/TLS_Configurations#Haproxy
 
-(c) 2017 SitePoint Pty Ltd
+(c) 2017,2019 SitePoint Pty Ltd
 Maintainer: Adam Bolte
 """
 
