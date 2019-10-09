@@ -122,9 +122,14 @@ listen {{ listener_config.name|default(listener) }}
     http-request {{ http_request }}
       {%- endfor %}
     {%- endif %}
-    {%- if 'http_request' in listener_config %}
-      {%- for http_request in listener_config.http_request %}
-    http-request {{ http_request }}
+    {%- if 'http_response' in listener_config %}
+      {%- for http_response in listener_config.http_response %}
+    http-response {{ http_response }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if 'stick_table' in listener_config %}
+      {%- for stick_table in listener_config.stick_table %}
+    stick-table {{ stick_table }}
       {%- endfor %}
     {%- endif %}
     {%- if 'redirects' in listener_config %}
@@ -243,6 +248,11 @@ frontend {{ frontend_config.name|default(frontend) }}
     http-response {{ http_response }}
       {%- endfor %}
     {%- endif %}
+    {%- if 'stick_table' in frontend_config %}
+      {%- for stick_table in frontend_config.stick_table %}
+    stick-table {{ stick_table }}
+      {%- endfor %}
+    {%- endif %}
     {%- if 'reqirep' in frontend_config %}
       {%- for reqirep in frontend_config.reqirep %}
     reqirep {{ reqirep }}
@@ -318,9 +328,14 @@ backend {{ backend_config.name|default(backend) }}
     http-request {{ http_request }}
       {%- endfor %}
     {%- endif %}
-    {%- if 'http_request' in backend_config %}
-      {%- for http_request in backend_config.http_request %}
-    http-request {{ http_request }}
+    {%- if 'http_response' in backend_config %}
+      {%- for http_response in backend_config.http_response %}
+    http-response {{ http_response }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if 'stick_table' in backend_config %}
+      {%- for stick_table in backend_config.stick_table %}
+    stick-table {{ stick_table }}
       {%- endfor %}
     {%- endif %}
     {%- if 'reqirep' in backend_config %}
