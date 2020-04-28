@@ -8,6 +8,8 @@ https://wiki.mozilla.org/Security/TLS_Configurations#Haproxy
 Maintainer: Adam Bolte
 """
 
+from __future__ import print_function
+
 import argparse
 import os
 import re
@@ -17,7 +19,11 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from urlparse import urlparse
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 # Import the Salt client library
 try:
@@ -104,7 +110,7 @@ def write_certs_to_disk(ssl_pillar):
             if cert_type in ssl_pillar[cert] and (
                     ssl_pillar[cert][cert_type] or cert_type == 'ocsp'):
                 try:
-                    os.mkdir(os.path.join(temp_dir, cert), 0700)
+                    os.mkdir(os.path.join(temp_dir, cert), 0o700)
                 except OSError:
                     pass
 
@@ -144,12 +150,12 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
     def verbose_output(first_line, cert, text_wrapper):
         """Print certificates to stdout"""
         if not first_line:
-            print
+            print()
         else:
             first_line = False
 
-        print "# %s\n$" % cert,
-        print text_wrapper.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
+        print("# {0}\n$".format(cert), end='')
+        print(text_wrapper.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n'))
 
         return first_line
 
@@ -221,7 +227,7 @@ def install_ocsp_certificates(cert_file_locations, ocsp_out_dir):
     """Copy good certs from temporary location to final target name"""
     do_reload = False
     ocsp_file_ext = '.pem.ocsp'
-    for cert, keys in cert_file_locations.items():
+    for cert, keys in list(cert_file_locations.items()):
         if keys.get('ocsp', None):
             if os.path.isfile(keys['ocsp']) and (
                     os.path.getsize(keys['ocsp']) > 0):
