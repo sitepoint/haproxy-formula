@@ -29,6 +29,16 @@ except ImportError:
     sys.exit(1)
 
 
+def extend_system_path(add_paths):
+    """Add list of additional directories to front of PATH"""
+    system_path = os.environ["PATH"].split(':')
+    for path in add_paths[::-1]:
+        if path in system_path:
+            system_path.remove(path)
+        system_path.insert(0, path)
+    os.environ["PATH"] = os.pathsep.join(system_path)
+
+
 def setup_argparser():
     """Return a argparse.ArgumentParser instance"""
     parser = argparse.ArgumentParser()
@@ -250,6 +260,7 @@ def clean_up_certs(cert_file_locations):
 
 def main():
     """Begin execution"""
+    extend_system_path(['/sbin', '/usr/sbin'])
     args = setup_argparser()
     ssl_pillar = get_certs_from_pillar()
     cert_file_locations = write_certs_to_disk(ssl_pillar)
