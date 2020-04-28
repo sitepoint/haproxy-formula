@@ -4,7 +4,7 @@
 Based on the Mozilla instructions:
 https://wiki.mozilla.org/Security/TLS_Configurations#Haproxy
 
-(c) 2017,2019 SitePoint Pty Ltd
+(c) 2015,2017,2019-2020 SitePoint Pty Ltd
 Maintainer: Adam Bolte
 """
 
