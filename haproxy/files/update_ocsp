@@ -30,8 +30,8 @@ try:
     import salt.client
 except ImportError:
     sys.stderr.write(
-        os.path.join(["Failed to load the Salt Stack client library.\n",
-                      "Try installing the salt-common package.\n"]))
+        ("Failed to load the Salt Stack client library.\n"
+         "Try installing the salt-common package.\n"))
     sys.exit(1)
 
 
