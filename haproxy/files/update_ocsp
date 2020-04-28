@@ -4,9 +4,11 @@
 Based on the Mozilla instructions:
 https://wiki.mozilla.org/Security/TLS_Configurations#Haproxy
 
-(c) 2017,2019 SitePoint Pty Ltd
+(c) 2015,2017,2019-2020 SitePoint Pty Ltd
 Maintainer: Adam Bolte
 """
+
+from __future__ import print_function
 
 import argparse
 import os
@@ -17,16 +19,30 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from urlparse import urlparse
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 # Import the Salt client library
 try:
     import salt.client
 except ImportError:
     sys.stderr.write(
-        os.path.join(["Failed to load the Salt Stack client library.\n",
-                      "Try installing the salt-common package.\n"]))
+        ("Failed to load the Salt Stack client library.\n"
+         "Try installing the salt-common package.\n"))
     sys.exit(1)
+
+
+def extend_system_path(add_paths):
+    """Add list of additional directories to front of PATH"""
+    system_path = os.environ["PATH"].split(':')
+    for path in add_paths[::-1]:
+        if path in system_path:
+            system_path.remove(path)
+        system_path.insert(0, path)
+    os.environ["PATH"] = os.pathsep.join(system_path)
 
 
 def setup_argparser():
@@ -94,7 +110,7 @@ def write_certs_to_disk(ssl_pillar):
             if cert_type in ssl_pillar[cert] and (
                     ssl_pillar[cert][cert_type] or cert_type == 'ocsp'):
                 try:
-                    os.mkdir(os.path.join(temp_dir, cert), 0700)
+                    os.mkdir(os.path.join(temp_dir, cert), 0o700)
                 except OSError:
                     pass
 
@@ -134,12 +150,12 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
     def verbose_output(first_line, cert, text_wrapper):
         """Print certificates to stdout"""
         if not first_line:
-            print
+            print()
         else:
             first_line = False
 
-        print "# %s\n$" % cert,
-        print text_wrapper.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n')
+        print("# {0}\n$".format(cert), end='')
+        print(text_wrapper.fill(" ".join(openssl_cmd)).replace('\n', ' \\\n'))
 
         return first_line
 
@@ -211,7 +227,7 @@ def install_ocsp_certificates(cert_file_locations, ocsp_out_dir):
     """Copy good certs from temporary location to final target name"""
     do_reload = False
     ocsp_file_ext = '.pem.ocsp'
-    for cert, keys in cert_file_locations.items():
+    for cert, keys in list(cert_file_locations.items()):
         if keys.get('ocsp', None):
             if os.path.isfile(keys['ocsp']) and (
                     os.path.getsize(keys['ocsp']) > 0):
@@ -250,6 +266,7 @@ def clean_up_certs(cert_file_locations):
 
 def main():
     """Begin execution"""
+    extend_system_path(['/sbin', '/usr/sbin'])
     args = setup_argparser()
     ssl_pillar = get_certs_from_pillar()
     cert_file_locations = write_certs_to_disk(ssl_pillar)
