@@ -171,6 +171,11 @@ listen {{ listener_config.name|default(listener) }}
     option {{ option }}
       {%- endfor %}
     {%- endif %}
+    {%- if 'timeouts' in listener_config %}
+      {%- for timeout in listener_config.timeouts %}
+    timeout {{ timeout }}
+      {%- endfor %}
+    {%- endif %}
     {%- if 'cookie' in listener_config %}
     cookie {{ listener_config.cookie }}
     {% endif %}
@@ -226,6 +231,11 @@ frontend {{ frontend_config.name|default(frontend) }}
     {%- if 'options' in frontend_config %}
       {%- for option in frontend_config.options %}
     {{ option }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if 'timeouts' in frontend_config %}
+      {%- for timeout in frontend_config.timeouts %}
+    timeout {{ timeout }}
       {%- endfor %}
     {%- endif %}
     {%- if 'acls' in frontend_config %}
@@ -299,6 +309,11 @@ backend {{ backend_config.name|default(backend) }}
     {%- if 'options' in backend_config %}
       {%- for option in backend_config.options %}
     option {{ option }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if 'timeouts' in backend_config %}
+      {%- for timeout in backend_config.timeouts %}
+    timeout {{ timeout }}
       {%- endfor %}
     {%- endif %}
     {%- if 'http_check' in backend_config %}
