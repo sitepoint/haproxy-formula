@@ -171,8 +171,10 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
                                         stdin=openssl_process.stdout,
                                         stdout=subprocess.PIPE)
         openssl_process.stdout.close()
-        ocsp_url = re.sub(r'^[^:]*:', '',
-                          grep_process.communicate()[0]).rstrip()
+        ocsp_url = re.sub(
+            r'^[^:]*:', '',
+            grep_process.communicate()[0].decode('utf-8')
+        ).rstrip()
         ocsp_host = urlparse(ocsp_url).netloc
 
         if not len(ocsp_url):
