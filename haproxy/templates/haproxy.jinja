@@ -180,7 +180,7 @@ listen {{ listener_config.name|default(listener) }}
     cookie {{ listener_config.cookie }}
     {% endif %}
     {%- if 'stats' in listener_config %}
-      {%- for option, value in listener_config.stats.items() %}
+      {%- for option, value in listener_config.stats.items()|sort %}
         {%- if option == 'enable' and value %}
     stats enable
         {%- elif option == 'hide_version' and value %}
@@ -194,7 +194,7 @@ listen {{ listener_config.name|default(listener) }}
     appsession {%- for option in listener_config.appsession %}  {{ option }}  {%- endfor %}
     {%- endif %}
     {%- if 'defaultserver' in listener_config %}
-    default-server {%- for option, value in listener_config.defaultserver.items() %} {{ ' '.join((option, value|string, '')) }} {%- endfor %}
+    default-server {%- for option, value in listener_config.defaultserver.items()|sort %} {{ ' '.join((option, value|string, '')) }} {%- endfor %}
     {%- endif %}
     {%- if 'servers' in listener_config and listener_config.servers is iterable() %}
       {%- for server, server_config in listener_config.servers.items()|sort %}
@@ -325,7 +325,7 @@ backend {{ backend_config.name|default(backend) }}
     cookie {{ backend_config.cookie }}
     {%- endif %}
     {%- if 'stats' in backend_config %}
-      {%- for option, value in backend_config.stats.items() %}
+      {%- for option, value in backend_config.stats.items()|sort %}
         {%- if option == 'enable' and value %}
     stats enable
         {%- else %}
@@ -375,7 +375,7 @@ backend {{ backend_config.name|default(backend) }}
     source {{ backend_config.source }}
     {%- endif %}
     {%- if 'defaultserver' in backend_config %}
-    default-server {%- for option, value in backend_config.defaultserver.items() %} {{ ' '.join((option, value|string, '')) }} {%- endfor %}
+    default-server {%- for option, value in backend_config.defaultserver.items()|sort %} {{ ' '.join((option, value|string, '')) }} {%- endfor %}
     {%- endif %}
     {%- if 'servers' in backend_config and backend_config.servers is iterable() %}
       {%- for server, server_config in backend_config.servers.items()|sort %}

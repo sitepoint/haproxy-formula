@@ -97,7 +97,8 @@ Update HAProxy log file path in {{ logrotate_config }}:
     - name: {{ logrotate_config }}
     - pattern: '^(\/[^ ]+)\ +{$'
     - repl:  {{
-        salt['pillar.get']('haproxy:log_file_path', '/var/log/haproxy.log')
+        salt['pillar.get']('haproxy:log_file_path',
+                           '/var/log/haproxy.log')
       }} {
     - backup: False
     - require:
@@ -210,13 +211,37 @@ Schedule regular update_ocsp executions via cron:
     - group: www-data
     - mode: '0640'
     - contents: |
-        {{ salt['pillar.get']('ssl:%s:key' % ssl_cert) | indent(8) }}
-        {{ salt['pillar.get']('ssl:%s:certificate' % ssl_cert) | indent(8) }}
-        {%- if 'intermediate' in salt['pillar.get']('ssl:%s' % ssl_cert) %}
-        {{ salt['pillar.get']('ssl:%s:intermediate' % ssl_cert) | indent(8) }}
+        {{
+          salt['pillar.get'](
+            'ssl:{0}:key'.format(ssl_cert)
+          ) | indent(8)
+        }}
+        {{
+          salt['pillar.get'](
+            'ssl:{0}:certificate'.format(ssl_cert)
+          ) | indent(8)
+        }}
+        {%-
+          if 'intermediate' in salt['pillar.get'](
+            'ssl:{0}'.format(ssl_cert)
+          )
+        %}
+        {{
+          salt['pillar.get'](
+            'ssl:{0}:intermediate'.format(ssl_cert)
+          ) | indent(8)
+        }}
         {% endif %}
-        {%- if 'ca' in salt['pillar.get']('ssl:%s' % ssl_cert) %}
-        {{ salt['pillar.get']('ssl:%s:ca' % ssl_cert) | indent(8) }}
+        {%-
+          if 'ca' in salt['pillar.get'](
+            'ssl:{0}'.format(ssl_cert)
+          )
+        %}
+        {{
+          salt['pillar.get'](
+            'ssl:{0}:ca'.format(ssl_cert)
+          ) | indent(8)
+        }}
         {% endif %}
     - require:
       - file: /etc/haproxy/certs
