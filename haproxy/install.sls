@@ -40,7 +40,8 @@ Restart rsyslog on haproxy package install:
     - watch:
       - pkg: haproxy
 {% if salt['pillar.get']('haproxy:log_file_path') %}
-      - file: Update HAProxy log file path in {{ syslog_file_path }}
+      - file: Update old-style HAProxy log file path in {{ syslog_file_path }}
+      - file: Update new-style HAProxy log file path in {{ syslog_file_path }}
 {% endif %}
 {% endif %}
 
@@ -73,11 +74,41 @@ Create the HAProxy logging output directory:
 
 # Handle rsyslog configuration directives.
 {% if salt['pillar.get']('haproxy:log_file_path') %}
-Update HAProxy log file path in {{ syslog_file_path }}:
+# Typically looks something like:
+#
+# # Create an additional socket in haproxy's chroot in order to allow logging via
+# # /dev/log to chroot'ed HAProxy processes
+# $AddUnixListenSocket /var/lib/haproxy/dev/log
+#
+# # Send HAProxy messages to a dedicated logfile
+# if $programname startswith 'haproxy' then /var/log/haproxy/haproxy.log
+# &~
+Update old-style HAProxy log file path in {{ syslog_file_path }}:
   file.replace:
     - name: {{ syslog_file_path }}
     - pattern: ^(if\ \$programname\ startswith\ \'haproxy\'\ then)\ .*$
-    - repl:  \1 {{ salt['pillar.get']('haproxy:log_file_path') }}
+    - repl: \1 {{ salt['pillar.get']('haproxy:log_file_path') }}
+    - backup: False
+    - require:
+      - pkg: haproxy.install
+      - file: Create the HAProxy logging output directory
+
+# Typically looks something like:
+#
+# # Create an additional socket in haproxy's chroot in order to allow logging via
+# # /dev/log to chroot'ed HAProxy processes
+# $AddUnixListenSocket /var/lib/haproxy/dev/log
+#
+# # Send HAProxy messages to a dedicated logfile
+# :programname, startswith, "haproxy" {
+#   /var/log/haproxy.log
+#   stop
+# }
+Update new-style HAProxy log file path in {{ syslog_file_path }}:
+  file.replace:
+    - name: {{ syslog_file_path }}
+    - pattern: ^(\ *)\/[^ ]*([\ $]*)$
+    - repl: \1{{ salt['pillar.get']('haproxy:log_file_path') }}\2
     - backup: False
     - require:
       - pkg: haproxy.install
