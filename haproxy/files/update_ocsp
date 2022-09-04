@@ -177,7 +177,7 @@ def execute_openssl_ocsp_command(cert_file_locations, verbose):
         ).rstrip()
         ocsp_host = urlparse(ocsp_url).netloc
 
-        if not len(ocsp_url):
+        if not ocsp_url:
             continue
 
         openssl_cmd = ['openssl', 'ocsp', '-noverify']

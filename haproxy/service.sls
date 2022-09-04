@@ -14,6 +14,9 @@ haproxy.service:
 {% endif %}
     - watch:
       - file: haproxy.config
+{%- if salt['pillar.get']('haproxy:dhparam') %}
+      - file: haproxy.dhparam
+{%- endif %}
 {% if 'ssl' in salt['pillar.items']() %}
 {% for ssl_cert in salt['pillar.get']('ssl') %}
       - file: /etc/haproxy/certs/{{ ssl_cert }}.pem
