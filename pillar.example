@@ -140,7 +140,9 @@ haproxy:
         enable: True
         uri: /url/to/stats
         realm: LoadBalancer
-        auth: "user:password"
+        auth:
+          username: username
+          password: password
       servers:
         some-server:
           host: 123.156.189.111

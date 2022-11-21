@@ -185,6 +185,8 @@ listen {{ listener_config.name|default(listener) }}
     stats enable
         {%- elif option == 'hide_version' and value %}
     stats hide-version
+        {%- elif option == 'auth' and 'username' in value and 'password' in value %}
+    stats auth {{ value['username'] }}:{{ value['password'] }}
         {%- else %}
     stats {{ option }} {{ value }}
         {%- endif %}
