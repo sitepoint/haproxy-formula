@@ -235,13 +235,18 @@ Schedule regular update_ocsp executions via cron:
     - require:
       - file: /usr/local/sbin/update_ocsp
 
-{%- for ssl_cert in salt['pillar.get']('ssl') %}
-/etc/haproxy/certs/{{ ssl_cert }}.pem:
+{%- for ssl_name, ssl_certs in salt['pillar.get']('ssl', {}).items() %}
+/etc/haproxy/certs/{{ ssl_name }}.pem:
   file.managed:
     - user: root
     - group: www-data
     - mode: '0640'
-    - contents_pillar: ssl:{{ ssl_cert }}:fullchain
+    - contents: |-
+{%- for cert_type in ("key", "certificate", "intermediate", "ca") %}
+{%- if cert_type in ssl_certs %}
+        {{ ssl_certs[cert_type].rstrip()|indent(8) }}
+{%- endif %}
+{%- endfor %}
     - require:
       - file: /etc/haproxy/certs
     - watch_in:
