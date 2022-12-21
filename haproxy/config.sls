@@ -8,7 +8,28 @@ haproxy.dhparam:
     - mode: 644
     - require:
       - pkg: haproxy.install
+    - require_in:
+      - file: haproxy.config
 {%- endif %}
+
+{%- for path, mappings in salt["pillar.get"]("haproxy:map_files", {}).items() %}
+HAProxy map file {{ path }}:
+  file.managed:
+    - name: {{ path }}
+    - contents: |-
+{%- for key, value in mappings.items() %}
+        {{ key }}  {{ value }}
+{%- endfor %}
+    - makedirs: True
+    - user: root
+    - group: root
+    - mode: 644
+    - dir_mode: '0755'
+    - require:
+      - pkg: haproxy.install
+    - require_in:
+      - file: haproxy.config
+{%- endfor %}
 
 haproxy.config:
   file.managed:
@@ -20,6 +41,3 @@ haproxy.config:
     - mode: 644
     - require:
       - pkg: haproxy.install
-{%- if salt['pillar.get']('haproxy:dhparam') %}
-      - file: {{ salt['pillar.get']('haproxy:dhparam_file_path', '/etc/haproxy/dhparam') }}
-{%- endif %}
