@@ -61,6 +61,11 @@ haproxy:
         - timeout retry 1s
         - hold valid 10s
 
+  map_files:
+    /etc/haproxy/www.sitepoint.com-rates.map:
+      /slowpage.php: 5
+      /fastpage.php: 80
+
   listens:
     stats:
       bind:
