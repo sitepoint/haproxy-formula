@@ -17,6 +17,9 @@ haproxy.service:
 {%- if salt['pillar.get']('haproxy:dhparam') %}
       - file: haproxy.dhparam
 {%- endif %}
+{%- for path in salt["pillar.get"]("haproxy:map_files", []) %}
+      - file: HAProxy map file {{ path }}
+{%- endfor %}
 {% if 'ssl' in salt['pillar.items']() %}
 {% for ssl_cert in salt['pillar.get']('ssl') %}
       - file: /etc/haproxy/certs/{{ ssl_cert }}.pem
