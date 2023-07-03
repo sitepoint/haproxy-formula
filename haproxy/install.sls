@@ -247,6 +247,9 @@ Schedule regular update_ocsp executions via cron:
         {{ ssl_certs[cert_type].rstrip()|indent(8) }}
 {%- endif %}
 {%- endfor %}
+{%- if "key" in ssl_certs %}
+    - show_changes: False
+{% endif %}
     - require:
       - file: /etc/haproxy/certs
     - watch_in:
