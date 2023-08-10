@@ -323,6 +323,11 @@ backend {{ backend_config.name|default(backend) }}
     http-check {{ h_c }}
       {%- endfor %}
     {%- endif %}
+    {%- if 'tcp_check' in backend_config %}
+      {%- for h_c in backend_config.tcp_check %}
+    tcp-check {{ h_c }}
+      {%- endfor %}
+    {%- endif %}
     {%- if 'cookie' in backend_config %}
     cookie {{ backend_config.cookie }}
     {%- endif %}
