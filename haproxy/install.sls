@@ -212,7 +212,11 @@ Delete {{ setting }} from {{ logrotate_config }}:
     - require:
       - pkg: haproxy
 
-/usr/local/sbin/update_ocsp:
+{%- set python_path = "/opt/saltstack/salt/bin" %}
+{%- set update_ocsp_path = "/usr/local/sbin/update_ocsp" %}
+{%- set update_ocsp_cmd = update_ocsp_path + ' /etc/haproxy/certs' %}
+
+{{ update_ocsp_path }}:
   file.managed:
     - user: root
     - group: root
@@ -221,19 +225,20 @@ Delete {{ setting }} from {{ logrotate_config }}:
     - requires:
       - pkg: haproxy
   cmd.wait:
-    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
+    - name: {{ update_ocsp_cmd }}
+    - env: "PATH={{ python_path }}:${PATH}"
     - require:
-      - file: /usr/local/sbin/update_ocsp
+      - file: {{ update_ocsp_path }}
 
 Schedule regular update_ocsp executions via cron:
   cron.present:
-    - name: /usr/local/sbin/update_ocsp /etc/haproxy/certs
+    - name: sh -c 'PATH="{{ python_path }}:${PATH}" {{ update_ocsp_cmd }}'
     - identifier: HAPROXY_OCSP_UPDATE
     - user: root
     - minute: 0
     - hour: '*/6'
     - require:
-      - file: /usr/local/sbin/update_ocsp
+      - file: {{ update_ocsp_path }}
 
 {%- for ssl_name, ssl_certs in salt['pillar.get']('ssl', {}).items() %}
 /etc/haproxy/certs/{{ ssl_name }}.pem:
@@ -253,6 +258,6 @@ Schedule regular update_ocsp executions via cron:
     - require:
       - file: /etc/haproxy/certs
     - watch_in:
-      - cmd: /usr/local/sbin/update_ocsp
+      - cmd: {{ update_ocsp_path }}
 {% endfor %}
 {% endif %}
