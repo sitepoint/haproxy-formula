@@ -215,6 +215,16 @@ Delete {{ setting }} from {{ logrotate_config }}:
 {%- set python_path = "/opt/saltstack/salt/bin" %}
 {%- set update_ocsp_path = "/usr/local/sbin/update_ocsp" %}
 {%- set update_ocsp_cmd = update_ocsp_path + ' /etc/haproxy/certs' %}
+{%-
+  set current_path = salt['environ.get'](
+    "PATH",
+    (
+        "/usr/local/sbin:/usr/local/bin:"
+        "/usr/sbin:/usr/bin:"
+        "/sbin:/bin"
+    ),
+  )
+%}
 
 {{ update_ocsp_path }}:
   file.managed:
@@ -226,7 +236,8 @@ Delete {{ setting }} from {{ logrotate_config }}:
       - pkg: haproxy
   cmd.wait:
     - name: {{ update_ocsp_cmd }}
-    - env: "PATH={{ python_path }}:${PATH}"
+    - env:
+      - PATH: {{ [python_path, current_path]|join(':') }}
     - require:
       - file: {{ update_ocsp_path }}
 
