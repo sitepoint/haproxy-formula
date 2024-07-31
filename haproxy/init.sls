@@ -11,3 +11,10 @@ include:
   - haproxy.install
   - haproxy.service
   - haproxy.config
+
+HAProxy state complete:
+  test.succeed_without_changes:
+    - require:
+      - sls: haproxy.install
+      - sls: haproxy.service
+      - sls: haproxy.config

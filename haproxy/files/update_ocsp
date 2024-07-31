@@ -71,8 +71,9 @@ def setup_argparser():
     return vars(parser_args)
 
 
-def get_certs_from_pillar():
+def get_certs_from_pillar(ocsp_out_dir: str) -> dict:
     """Return 'ssl' keys from Salt pillar as a dict"""
+    results = {}
     # Create a local client Caller object
     try:
         caller = salt.client.Caller()
@@ -91,11 +92,20 @@ def get_certs_from_pillar():
         sys.exit(1)
 
     try:
-        results = caller.function("pillar.get", "ssl")
+        ssl_pillar = caller.function("pillar.get", "ssl")
+        haproxy_certs = caller.function("pillar.get", "haproxy:cert_dirs")
     except salt.exceptions.SaltException as exception:
         sys.stderr.write("Failure:\n{0}\n".format(exception))
         sys.exit(1)
 
+    # Strip a trailing slash from a directory key in haproxy_certs.
+    for key in list(haproxy_certs.keys()):
+        haproxy_certs[key.rstrip("/")] = haproxy_certs.pop(key)
+
+    # Get certs allocated to the requested directory.
+    if ocsp_out_dir.rstrip("/") in haproxy_certs:
+        for cert in haproxy_certs[ocsp_out_dir.rstrip("/")]:
+            results[cert] = ssl_pillar[cert]
     return results
 
 
@@ -305,7 +315,7 @@ def main():
     """Begin execution"""
     extend_system_path(["/sbin", "/usr/sbin"])
     args = setup_argparser()
-    ssl_pillar = get_certs_from_pillar()
+    ssl_pillar = get_certs_from_pillar(args["ocsp_out_dir"])
     cert_file_locations = write_certs_to_disk(ssl_pillar)
     execute_openssl_ocsp_command(cert_file_locations, args["verbose"])
     install_ocsp_certificates(cert_file_locations, args["ocsp_out_dir"])
