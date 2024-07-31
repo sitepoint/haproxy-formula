@@ -12,6 +12,13 @@ haproxy:
     deletes:
       - badoption
   logrotate_file_path: /etc/logrotate.d/haproxy
+
+  # Directories containing certificates for deployment.
+  # Certificates must be provided within "ssl" pillar.
+  cert_dirs:
+    /etc/haproxy/certs/:
+      - 000-example.com
+
   global:
     stats:
       enable: True

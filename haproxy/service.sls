@@ -1,3 +1,7 @@
+include:
+  - haproxy.install
+  - haproxy.config
+
 haproxy.service:
 {% if salt['pillar.get']('haproxy:enable', True) %}
   service.running:
@@ -7,11 +11,6 @@ haproxy.service:
     - require:
       - pkg: haproxy
         file: haproxy.service
-{% if 'ssl' in salt['pillar.items']() %}
-{% for ssl_cert in salt['pillar.get']('ssl') %}
-      - file: /etc/haproxy/certs/{{ ssl_cert }}.pem
-{% endfor %}
-{% endif %}
     - watch:
       - file: haproxy.config
 {%- if salt['pillar.get']('haproxy:dhparam') %}
@@ -20,11 +19,6 @@ haproxy.service:
 {%- for path in salt["pillar.get"]("haproxy:map_files", []) %}
       - file: HAProxy map file {{ path }}
 {%- endfor %}
-{% if 'ssl' in salt['pillar.items']() %}
-{% for ssl_cert in salt['pillar.get']('ssl') %}
-      - file: /etc/haproxy/certs/{{ ssl_cert }}.pem
-{% endfor %}
-{% endif %}
 {% else %}
   service.dead:
     - name: haproxy

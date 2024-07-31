@@ -1,3 +1,6 @@
+include:
+  - haproxy.install
+
 {%- if salt['pillar.get']('haproxy:dhparam') %}
 haproxy.dhparam:
   file.managed:

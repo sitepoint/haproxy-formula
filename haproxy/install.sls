@@ -5,12 +5,12 @@
   )
 %}
 
-{% if salt['pillar.get']('haproxy:include') %}
 include:
+  - haproxy.config
+  - haproxy.service
 {% for item in salt['pillar.get']('haproxy:include') %}
   - {{ item }}
 {% endfor %}
-{% endif %}
 
 # If on Ubuntu, add a PPA to use the latest HAProxy releases.
 {% if salt['grains.get']('osfullname') == 'Ubuntu' %}
@@ -39,6 +39,7 @@ Restart rsyslog on haproxy package install:
     - name: rsyslog
     - watch:
       - pkg: haproxy
+      - file: haproxy.config
 {% if salt['pillar.get']('haproxy:log_file_path') %}
       - file: Update old-style HAProxy log file path in {{ syslog_file_path }}
       - file: Update new-style HAProxy log file path in {{ syslog_file_path }}
@@ -202,19 +203,10 @@ Delete {{ setting }} from {{ logrotate_config }}:
 {% endfor %}
 {% endif %}
 
-# Handle OCSP stapling.
-{% if 'ssl' in salt['pillar.items']() %}
-/etc/haproxy/certs:
-  file.directory:
-    - user: root
-    - group: {{ salt['pillar.get']('haproxy:global:group', 'haproxy') }}
-    - mode: '0750'
-    - require:
-      - pkg: haproxy
 
+# Handle cert dirs and OCSP stapling.
 {%- set python_path = "/opt/saltstack/salt/bin" %}
 {%- set update_ocsp_path = "/usr/local/sbin/update_ocsp" %}
-{%- set update_ocsp_cmd = update_ocsp_path + ' /etc/haproxy/certs' %}
 {%-
   set current_path = salt['environ.get'](
     "PATH",
@@ -226,34 +218,59 @@ Delete {{ setting }} from {{ logrotate_config }}:
   )
 %}
 
-{{ update_ocsp_path }}:
+Deploy {{ update_ocsp_path }}:
   file.managed:
+    - name: {{ update_ocsp_path }}
     - user: root
     - group: root
     - mode: '0700'
     - source: salt://haproxy/files/update_ocsp
     - requires:
       - pkg: haproxy
+
+{%-
+  for dir_name in salt["pillar.get"](
+    "haproxy:cert_dirs", ["/etc/haproxy/certs"]
+  )
+%}
+{%- set update_ocsp_cmd = update_ocsp_path ~ " " ~ dir_name %}
+{{ dir_name }}:
+  file.directory:
+    - user: root
+    - group: {{ salt['pillar.get']('haproxy:global:group', 'haproxy') }}
+    - mode: '0750'
+    - require:
+      - pkg: haproxy
+
+Run '{{ update_ocsp_cmd }}':
   cmd.wait:
     - name: {{ update_ocsp_cmd }}
     - env:
       - PATH: {{ [python_path, current_path]|join(':') }}
     - require:
-      - file: {{ update_ocsp_path }}
+      - file: Deploy {{ update_ocsp_path }}
 
-Schedule regular update_ocsp executions via cron:
+Schedule regular update_ocsp executions via cron for {{ dir_name }}:
   cron.present:
     - name: sh -c 'PATH="{{ python_path }}:${PATH}" {{ update_ocsp_cmd }}'
-    - identifier: HAPROXY_OCSP_UPDATE
+    - identifier: HAPROXY_OCSP_UPDATE-{{ dir_name }}
     - user: root
     - minute: 0
     - hour: '*/6'
     - require:
       - file: {{ update_ocsp_path }}
+{%- endfor %}
 
+{%-
+  for hap_cert_dir, hap_cert_names in salt["pillar.get"](
+    "haproxy:cert_dirs", {}
+  ).items()
+%}
 {%- for ssl_name, ssl_certs in salt['pillar.get']('ssl', {}).items() %}
-/etc/haproxy/certs/{{ ssl_name }}.pem:
+{%- if ssl_name in hap_cert_names %}
+Deploy {{ hap_cert_dir }}{{ ssl_name }}.pem:
   file.managed:
+    - name: {{ hap_cert_dir }}{{ ssl_name }}.pem
     - user: root
     - group: www-data
     - mode: '0640'
@@ -265,10 +282,12 @@ Schedule regular update_ocsp executions via cron:
 {%- endfor %}
 {%- if "key" in ssl_certs %}
     - show_changes: False
-{% endif %}
+{%- endif %}
     - require:
-      - file: /etc/haproxy/certs
+      - file: {{ hap_cert_dir }}
     - watch_in:
-      - cmd: {{ update_ocsp_path }}
-{% endfor %}
-{% endif %}
+      - cmd: Run '{{ update_ocsp_path }} {{ hap_cert_dir }}'
+      - service: haproxy.service
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
