@@ -12,15 +12,6 @@ include:
   - {{ item }}
 {% endfor %}
 
-# If on Ubuntu, add a PPA to use the latest HAProxy releases.
-{% if salt['grains.get']('osfullname') == 'Ubuntu' %}
-haproxy_ppa_repo:
-  pkgrepo.managed:
-    - ppa: vbernat/haproxy-1.5
-    - require_in:
-      - pkg: haproxy.install
-{% endif %}
-
 haproxy.install:
   pkg.installed:
     - name: haproxy
@@ -61,6 +52,8 @@ Restart rsyslog on haproxy package install:
         </body></html>
     - require:
       - pkg: haproxy.install
+    - require_in:
+      - service: haproxy.service
 
 {% if 'log_file_path' in salt['pillar.get']('haproxy') %}
 Create the HAProxy logging output directory:
@@ -71,6 +64,8 @@ Create the HAProxy logging output directory:
     - user: root
     - group: adm
     - mode: '0750'
+    - require_in:
+      - service: haproxy.service
 {% endif %}
 
 # Handle rsyslog configuration directives.
