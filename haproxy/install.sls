@@ -61,6 +61,8 @@ Restart rsyslog on haproxy package install:
         </body></html>
     - require:
       - pkg: haproxy.install
+    - require_in:
+      - service: haproxy.service
 
 {% if 'log_file_path' in salt['pillar.get']('haproxy') %}
 Create the HAProxy logging output directory:
@@ -71,6 +73,8 @@ Create the HAProxy logging output directory:
     - user: root
     - group: adm
     - mode: '0750'
+    - require_in:
+      - service: haproxy.service
 {% endif %}
 
 # Handle rsyslog configuration directives.
