@@ -12,15 +12,6 @@ include:
   - {{ item }}
 {% endfor %}
 
-# If on Ubuntu, add a PPA to use the latest HAProxy releases.
-{% if salt['grains.get']('osfullname') == 'Ubuntu' %}
-haproxy_ppa_repo:
-  pkgrepo.managed:
-    - ppa: vbernat/haproxy-1.5
-    - require_in:
-      - pkg: haproxy.install
-{% endif %}
-
 haproxy.install:
   pkg.installed:
     - name: haproxy
