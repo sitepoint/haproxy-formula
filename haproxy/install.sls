@@ -264,7 +264,7 @@ Schedule regular update_ocsp executions via cron for {{ dir_name }}:
 {%- for ssl_name, ssl_certs in salt['pillar.get']('ssl', {}).items() %}
 {%- if ssl_name in hap_cert_names %}
 Deploy {{ hap_cert_dir }}{{ ssl_name }}.pem:
-  file.managed:
+  ssl_cert.deployed:
     - name: {{ hap_cert_dir }}{{ ssl_name }}.pem
     - user: root
     - group: www-data
@@ -275,9 +275,6 @@ Deploy {{ hap_cert_dir }}{{ ssl_name }}.pem:
         {{ ssl_certs[cert_type].rstrip()|indent(8) }}
 {%- endif %}
 {%- endfor %}
-{%- if "key" in ssl_certs %}
-    - show_changes: False
-{%- endif %}
     - require:
       - file: {{ hap_cert_dir }}
     - watch_in:

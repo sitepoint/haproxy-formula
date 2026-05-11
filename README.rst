@@ -78,3 +78,26 @@ Currently, only a handful of options can be set using the pillar:
 -------------------
 
 Make sure ``haproxy`` service is running.
+
+
+Custom state modules
+====================
+
+``ssl_cert``
+------------
+
+Provides the ``ssl_cert.deployed`` state (``_states/ssl_cert.py``), used by
+``haproxy.install`` to deploy certificate bundles to the HAProxy cert
+directory.
+
+Behaves identically to ``file.managed`` except:
+
+- Deployment is skipped (with a success result) if the entity certificate in
+  the PEM bundle has expired or cannot be parsed. The file is not created or
+  updated in that case, so an HAProxy configuration that references it
+  explicitly by path will fail to start — making cert expiry visible via
+  ``systemctl is-system-running``.
+- ``show_changes`` is always ``False`` regardless of any argument passed, to
+  prevent private key material from appearing in Salt output.
+
+Requires pyOpenSSL (bundled with Salt 3006).
