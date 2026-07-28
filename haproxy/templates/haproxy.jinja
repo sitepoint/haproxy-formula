@@ -10,8 +10,19 @@
 # Global settings
 #------------------
 global
-    log /dev/log local0
-    log /dev/log local1 notice
+{#-
+ # Each entry is emitted verbatim after "log". Note that the level
+ # argument is a ceiling: a target with no level receives every
+ # message, so listing both an unfiltered target and a "notice" one
+ # logs anything at notice or above twice.
+ #}
+{%- for log_entry in salt['pillar.get'](
+      'haproxy:global:log',
+      ['/dev/log local0', '/dev/log local1 notice']
+    )
+%}
+    log {{ log_entry }}
+{%- endfor %}
 {%- if salt['pillar.get']('haproxy:global:daemon', 'no') %}
     daemon
 {%- endif %}

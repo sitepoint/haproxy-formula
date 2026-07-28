@@ -20,6 +20,14 @@ haproxy:
       - 000-example.com
 
   global:
+    # Each entry is emitted verbatim after "log". Omit this key to keep
+    # the historical default of the two entries shown below. Note that
+    # the level argument is a ceiling, so an unfiltered target and a
+    # "notice" target together log anything at notice or above twice.
+    log:
+      - /dev/log local0
+      - /dev/log local1 notice
+
     stats:
       enable: True
       socketpath: /var/lib/haproxy/stats
