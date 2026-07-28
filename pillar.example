@@ -3,7 +3,8 @@
 #
 
 haproxy:
-  enabled: True
+  # Whether the service should be running and start at boot.
+  enable: True
   config_file_path: /etc/haproxy/haproxy.cfg
   logrotate:
     updates:

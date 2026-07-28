@@ -23,12 +23,12 @@ global
 %}
     log {{ log_entry }}
 {%- endfor %}
-{%- if salt['pillar.get']('haproxy:global:daemon', 'no') %}
+{%- if salt['pillar.get']('haproxy:global:daemon', False) %}
     daemon
 {%- endif %}
     user {{ salt['pillar.get']('haproxy:global:user', 'haproxy') }}
     group {{ salt['pillar.get']('haproxy:global:group', 'haproxy') }}
-{%- if salt['pillar.get']('haproxy:global:chroot:enable', 'no') %}
+{%- if salt['pillar.get']('haproxy:global:chroot:enable', False) %}
     chroot {{ salt['pillar.get']('haproxy:global:chroot:path', '/tmp') }}
 {%- endif %}
 {%- if 'misc' in salt['pillar.get']('haproxy:global', {}) %}
@@ -36,7 +36,7 @@ global
     {{ misc }}
   {%- endfor %}
 {%- endif %}
-{%- if salt['pillar.get']('haproxy:global:stats:enable', 'no') %}
+{%- if salt['pillar.get']('haproxy:global:stats:enable', False) %}
     # Stats support is currently limited to socket mode
     stats socket {{
       salt['pillar.get'](

@@ -10,7 +10,6 @@ haproxy.service:
     - reload: True
     - require:
       - pkg: haproxy
-        file: haproxy.service
     - watch:
       - file: haproxy.config
 {%- if salt['pillar.get']('haproxy:dhparam') %}
@@ -24,13 +23,3 @@ haproxy.service:
     - name: haproxy
     - enable: False
 {% endif %}
-  file.replace:
-    - name: /etc/default/haproxy
-{% if salt['pillar.get']('haproxy:enabled', True) %}
-    - pattern: ENABLED=0$
-    - repl: ENABLED=1
-{% else %}
-    - pattern: ENABLED=1$
-    - repl: ENABLED=0
-{% endif %}
-    - show_changes: True
