@@ -28,6 +28,24 @@ Install, configure and run ``haproxy`` service.
 
 Install ``haproxy`` from packages.
 
+If ``log_file_path`` is set, this state also creates the directory containing it
+and manages the rsyslog drop-in named by ``syslog_file_path`` (by default
+``/etc/rsyslog.d/49-haproxy.conf``), replacing the copy shipped in the haproxy
+package. rsyslog is restarted whenever that file changes or the haproxy package
+is installed, since installing the package drops a config into ``/etc/rsyslog.d``
+without restarting rsyslog itself (Debian bug #790871).
+
+When ``global:chroot:enable`` is set, HAProxy cannot reach ``/dev/log``, so the
+drop-in adds a socket inside the chroot and binds it to its own rsyslog ruleset.
+Only messages arriving on that socket are written to the log file. On a systemd
+host HAProxy's stderr is captured by journald and forwarded back to rsyslog under
+the same program name, so without that separation every health check state change
+is written to the log file twice; the drop-in discards the forwarded copy, which
+remains available through ``journalctl -u haproxy``.
+
+Without chroot, HAProxy logs to the system ``/dev/log`` and its messages can only
+be matched by program name, so that duplication cannot be avoided.
+
 ``haproxy.config``
 ------------------
 

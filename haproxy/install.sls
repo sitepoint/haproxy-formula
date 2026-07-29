@@ -22,8 +22,14 @@ haproxy.install:
 {% endfor %}
 {% endif %}
 
-# See bug report: haproxy install should restart rsyslog
+# Installing the haproxy package drops a config file into
+# /etc/rsyslog.d/ without restarting rsyslog, so it is not picked up
+# until something else does. See:
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790871
+#
+# The same applies whenever we rewrite that file ourselves. A restart
+# rather than a reload is needed, because the chroot socket is an input
+# and rsyslog only binds inputs at startup.
 {% if salt['pkg.version']('rsyslog') %}
 Restart rsyslog on haproxy package install:
   service.running:
@@ -32,8 +38,7 @@ Restart rsyslog on haproxy package install:
       - pkg: haproxy
       - file: haproxy.config
 {% if salt['pillar.get']('haproxy:log_file_path') %}
-      - file: Update old-style HAProxy log file path in {{ syslog_file_path }}
-      - file: Update new-style HAProxy log file path in {{ syslog_file_path }}
+      - file: Deploy {{ syslog_file_path }}
 {% endif %}
 {% endif %}
 
@@ -68,44 +73,23 @@ Create the HAProxy logging output directory:
       - service: haproxy.service
 {% endif %}
 
-# Handle rsyslog configuration directives.
+# Handle rsyslog configuration.
+#
+# The packaged file is replaced rather than patched. Patching it meant
+# matching whichever of two syntaxes Debian happened to ship, and left
+# us unable to change anything but the log path. Managing it outright
+# also lets the chroot socket be bound to its own rsyslog ruleset,
+# which is what keeps journald's copy of HAProxy's stderr out of the
+# log file.
 {% if salt['pillar.get']('haproxy:log_file_path') %}
-# Typically looks something like:
-#
-# # Create an additional socket in haproxy's chroot in order to allow logging via
-# # /dev/log to chroot'ed HAProxy processes
-# $AddUnixListenSocket /var/lib/haproxy/dev/log
-#
-# # Send HAProxy messages to a dedicated logfile
-# if $programname startswith 'haproxy' then /var/log/haproxy/haproxy.log
-# &~
-Update old-style HAProxy log file path in {{ syslog_file_path }}:
-  file.replace:
+Deploy {{ syslog_file_path }}:
+  file.managed:
     - name: {{ syslog_file_path }}
-    - pattern: ^(if\ \$programname\ startswith\ \'haproxy\'\ then)\ .*$
-    - repl: \1 {{ salt['pillar.get']('haproxy:log_file_path') }}
-    - backup: False
-    - require:
-      - pkg: haproxy.install
-      - file: Create the HAProxy logging output directory
-
-# Typically looks something like:
-#
-# # Create an additional socket in haproxy's chroot in order to allow logging via
-# # /dev/log to chroot'ed HAProxy processes
-# $AddUnixListenSocket /var/lib/haproxy/dev/log
-#
-# # Send HAProxy messages to a dedicated logfile
-# :programname, startswith, "haproxy" {
-#   /var/log/haproxy.log
-#   stop
-# }
-Update new-style HAProxy log file path in {{ syslog_file_path }}:
-  file.replace:
-    - name: {{ syslog_file_path }}
-    - pattern: ^(\ *)\/[^ ]*([\ $]*)$
-    - repl: \1{{ salt['pillar.get']('haproxy:log_file_path') }}\2
-    - backup: False
+    - source: salt://haproxy/files/rsyslog-haproxy.conf
+    - template: jinja
+    - user: root
+    - group: root
+    - mode: '0644'
     - require:
       - pkg: haproxy.install
       - file: Create the HAProxy logging output directory

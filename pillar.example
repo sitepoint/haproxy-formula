@@ -6,6 +6,15 @@ haproxy:
   # Whether the service should be running and start at boot.
   enable: True
   config_file_path: /etc/haproxy/haproxy.cfg
+
+  # Setting log_file_path makes the formula create the containing
+  # directory and manage the rsyslog drop-in named by
+  # syslog_file_path, replacing the copy shipped in the haproxy
+  # package. Leave log_file_path unset to keep the packaged file and
+  # whatever destination it names.
+  log_file_path: /var/log/haproxy/haproxy.log
+  syslog_file_path: /etc/rsyslog.d/49-haproxy.conf
+
   logrotate:
     updates:
       daily: ''
