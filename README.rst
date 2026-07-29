@@ -35,6 +35,10 @@ Currently, only a handful of options can be set using the pillar:
 
 - Global
 
+  + log: a list of log targets, each emitted verbatim after ``log``. Defaults to
+    ``['/dev/log local0', '/dev/log local1 notice']``. The level argument is a
+    ceiling, so a target with no level receives every message; listing both an
+    unfiltered target and a ``notice`` one logs anything at notice or above twice
   + stats: enable stats, curently only via a unix socket which can be set to a path
   + user: sets the user haproxy shall run as
   + group: sets the group haproxy shall run as
